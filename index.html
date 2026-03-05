@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>CAC Good Works · Prayer Unit | Complete Attendance</title>
+    <!-- Font & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- chart.js (lightweight) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- jsPDF + autoTable for monthly PDF report -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <!-- SheetJS (XLSX) for excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: #f6f5f3;
+            color: #1e2a41;
+            line-height: 1.5;
+            padding: 16px 12px;
+        }
+
+        .app {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        /* luxury neutral palette */
+        :root {
+            --white: #ffffff;
+            --cream: #faf8f4;
+            --soft-gold: #d4b68a;
+            --navy: #1e2a41;
+            --emerald: #2c6e63;
+            --emerald-light: #e7f1ef;
+            --gray-soft: #eae7e1;
+            --shadow-sm: 0 8px 24px -6px rgba(0, 20, 20, 0.08), 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        h1, h2, h3 {
+            font-weight: 450;
+            letter-spacing: -0.02em;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 24px;
+            box-shadow: var(--shadow-sm);
+            padding: 1.5rem 1.2rem;
+            border: 1px solid rgba(212, 182, 138, 0.15);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 60px;
+            padding: 0.2rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .badge-active {
+            background: #e1f0ed;
+            color: var(--emerald);
+        }
+
+        .badge-inactive {
+            background: #f1eeeb;
+            color: #7a6a5a;
+        }
+
+        .btn {
+            border: none;
+            background: transparent;
+            font-weight: 500;
+            border-radius: 40px;
+            padding: 0.6rem 1.3rem;
+            cursor: pointer;
+            transition: 0.15s;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--navy);
+            color: white;
+            box-shadow: 0 4px 10px rgba(30, 42, 65, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: #263855;
+        }
+
+        .btn-outline-gold {
+            border: 1px solid var(--soft-gold);
+            color: var(--navy);
+            background: white;
+        }
+
+        .btn-outline-gold:hover {
+            background: #fcf8f2;
+        }
+
+        .btn-edit, .btn-delete {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.8rem;
+            border-radius: 30px;
+        }
+        .btn-edit { color: var(--navy); border-color: var(--soft-gold);}
+        .btn-delete { color: #b16a5a; border-color: #e0c0b6;}
+
+        .input-field {
+            border: 1px solid var(--gray-soft);
+            border-radius: 60px;
+            padding: 0.7rem 1.2rem;
+            width: 100%;
+            font-size: 0.95rem;
+            background: white;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--soft-gold);
+            box-shadow: 0 0 0 3px rgba(212, 182, 138, 0.2);
+        }
+
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        /* mobile attendance cards */
+        .member-attendance-card {
+            background: #fcfaf7;
+            border-radius: 24px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            border: 1px solid #ede8e0;
+        }
+
+        .att-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+        }
+
+        .member-name {
+            font-weight: 550;
+            font-size: 1.1rem;
+        }
+
+        .stat-cards {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: white;
+            border-radius: 24px;
+            padding: 1rem 1.2rem;
+            min-width: 120px;
+            box-shadow: var(--shadow-sm);
+            flex: 1 1 120px;
+            border: 1px solid rgba(212,182,138,0.2);
+        }
+
+        .recent-absentees {
+            background: white;
+            border-radius: 24px;
+            padding: 1.2rem 1.2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            font-weight: 500;
+            color: var(--navy);
+            opacity: 0.7;
+            padding-bottom: 0.4rem;
+        }
+
+        td {
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #f0eae2;
+        }
+
+        .photo-preview {
+            width: 48px;
+            height: 48px;
+            background: #eae7e1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--navy);
+            font-size: 0.8rem;
+            background-size: cover;
+            background-position: center;
+        }
+        .month-selector {
+            border: 1px solid var(--soft-gold);
+            border-radius: 40px;
+            padding: 0.3rem 1rem;
+            background: white;
+            font-size: 0.85rem;
+        }
+
+        /* modal overlay for edit */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.2);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(3px);
+        }
+        .modal-card {
+            background: white;
+            border-radius: 32px;
+            padding: 2rem 1.5rem;
+            max-width: 480px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 50px rgba(0,0,0,0.2);
+        }
+        .close-icon {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .session-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+            border-radius: 16px;
+            background: #f9f7f4;
+            padding: 0.5rem;
+        }
+        .session-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-bottom: 1px solid #ede8e0;
+            font-size: 0.9rem;
+        }
+        .session-item:last-child {
+            border-bottom: none;
+        }
+
+        .date-navigation {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .reason-badge {
+            background: #f1eeeb;
+            padding: 0.2rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #7a6a5a;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2col { grid-template-columns: 1fr; }
+            .stat-item { min-width: 100%; }
+            .btn { padding: 0.5rem 1rem; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- header premium -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap:0.5rem;">
+        <div>
+            <span style="font-size: 0.8rem; color: var(--soft-gold);">CAC GOOD WORKS</span>
+            <h1 style="font-size: 2rem; font-weight: 450; margin-top: 0.1rem;">Prayer Unit</h1>
+        </div>
+        <div class="flex-row">
+            <button class="btn btn-outline-gold" id="exportExcelBtn"><i class="far fa-file-excel"></i><span class="hide-mob"> Excel</span></button>
+        </div>
+    </div>
+
+    <!-- dashboard stats -->
+    <div class="stat-cards" style="margin-bottom: 1.5rem;">
+        <div class="stat-item"><span style="color: var(--emerald); font-size: 1.6rem; font-weight: 450;" id="totalMembersDisplay">0</span><br><span style="font-size:0.9rem;">Total members</span></div>
+        <div class="stat-item"><span style="color: var(--navy); font-size: 1.6rem;" id="totalSessionsDisplay">0</span><br><span style="font-size:0.9rem;">Total Sessions</span></div>
+        <div class="stat-item"><span style="color: #b28b6f; font-size: 1.6rem;" id="avgAttendanceDisplay">0%</span><br><span style="font-size:0.9rem;">Avg Attendance</span></div>
+    </div>
+
+    <!-- add member card + filter -->
+    <div class="card" style="margin-bottom: 1.5rem;">
+        <h2 style="margin-bottom: 1rem; font-size: 1.4rem;">➕ Add member</h2>
+        <form id="addMemberForm" class="grid-2col" style="margin-bottom: 0.8rem;">
+            <input type="text" class="input-field" placeholder="Full name" id="fullName" required>
+            <input type="tel" class="input-field" placeholder="Phone" id="phone">
+            <input type="email" class="input-field" placeholder="Email" id="email">
+            <select class="input-field" id="gender"><option>Male</option><option>Female</option></select>
+            <input type="date" class="input-field" id="dateJoined" value="2025-02-01">
+            <select class="input-field" id="role"><option>Member</option><option>Leader</option><option>Assistant Leader</option></select>
+            <select class="input-field" id="status"><option>Active</option><option>Inactive</option></select>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <label for="profilePhoto" class="btn btn-outline-gold" style="padding:0.5rem 1rem;">📸 Photo</label>
+                <input type="file" id="profilePhoto" accept="image/*" style="display: none;">
+                <span class="photo-preview" id="photoPreview"><i class="fas fa-user"></i></span>
+            </div>
+            <button type="submit" class="btn btn-primary" style="grid-column: span 2; width:100%;">Save member</button>
+        </form>
+        <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+            <input type="text" class="input-field" placeholder="🔍 Search name..." id="searchName" style="flex:2;">
+        </div>
+    </div>
+
+    <!-- Monthly Report Section with Session Details -->
+    <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(145deg, #ffffff 0%, #faf8f4 100%);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <h2 style="font-size: 1.4rem;">📊 Monthly Report & Session Details</h2>
+            <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+                <select id="reportMonth" class="month-selector" style="padding: 0.5rem 1.5rem;">
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                </select>
+                <select id="reportYear" class="month-selector" style="padding: 0.5rem 1.5rem;">
+                    <option value="2024">2024</option>
+                    <option value="2025" selected>2025</option>
+                    <option value="2026">2026</option>
+                </select>
+                <button class="btn btn-primary" id="generateMonthlyReport"><i class="fas fa-calculator"></i> Generate Full Report</button>
+            </div>
+        </div>
+        
+        <!-- Monthly Statistics Cards -->
+        <div id="monthlyStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+            <div class="stat-item" style="background: var(--emerald-light);">
+                <span style="font-size: 1.4rem; color: var(--emerald);" id="totalSessionsMonth">0</span><br>
+                <span>Total Sessions</span>
+            </div>
+            <div class="stat-item" style="background: var(--emerald-light);">
+                <span style="font-size: 1.4rem; color: var(--emerald);" id="sundaySessions">0</span><br>
+                <span>Sunday Services</span>
+            </div>
+            <div class="stat-item" style="background: var(--emerald-light);">
+                <span style="font-size: 1.4rem; color: var(--emerald);" id="wednesdaySessions">0</span><br>
+                <span>Wednesday Meetings</span>
+            </div>
+            <div class="stat-item" style="background: var(--emerald-light);">
+                <span style="font-size: 1.4rem; color: var(--emerald);" id="saturdaySessions">0</span><br>
+                <span>Saturday Gatherings</span>
+            </div>
+        </div>
+
+        <!-- Session List in Tabular Form -->
+        <div style="margin-top: 1rem;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">📅 Session Details Table:</h3>
+            <div style="overflow-x: auto; border-radius: 16px; background: #f9f7f4; padding: 0.5rem;">
+                <table id="sessionTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Meeting Type</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Attendance %</th>
+                            <th>Absentees (Reasons)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionTableBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Member Attendance Summary Table -->
+        <div style="margin-top: 1.5rem;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">👥 Member Attendance Summary Table:</h3>
+            <div style="overflow-x: auto; border-radius: 16px; background: #f9f7f4; padding: 0.5rem;">
+                <table id="memberSummaryTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Role</th>
+                            <th>Sessions</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Attendance %</th>
+                            <th>Absence Reasons</th>
+                        </tr>
+                    </thead>
+                    <tbody id="memberSummaryBody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- attendance area: view any date -->
+    <div class="grid-2col" style="margin-bottom: 1.5rem;">
+        <!-- left column: attendance cards with date selector -->
+        <div class="card" style="padding: 1.2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
+                <h2 style="font-size: 1.3rem;">📋 Attendance View</h2>
+                <div class="date-navigation">
+                    <button class="btn btn-outline-gold" id="prevDateBtn"><i class="fas fa-chevron-left"></i></button>
+                    <input type="date" id="attendanceDate" class="input-field" style="width: auto; max-width: 160px;">
+                    <button class="btn btn-outline-gold" id="nextDateBtn"><i class="fas fa-chevron-right"></i></button>
+                    <button class="btn btn-outline-gold" id="todayDateBtn">Today</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f3efe9; border-radius: 40px; text-align: center;" id="selectedDateLabel">
+                Loading...
+            </div>
+            <div id="mobileAttendanceList" style="margin-top: 1rem;">
+                <!-- filled via js as cards for selected date -->
+            </div>
+            <button class="btn btn-primary" id="refreshAttendanceBtn" style="width:100%; margin-top:0.8rem;">✓ Update Attendance for This Date</button>
+        </div>
+        <!-- right: chart & recent absentees -->
+        <div>
+            <div class="card" style="margin-bottom: 1rem; padding:1.2rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <h3 style="font-size:1.1rem;">📈 Weekly Trend</h3>
+                </div>
+                <canvas id="monthlyChart" style="width:100%; max-height:150px; margin-top:0.5rem;"></canvas>
+            </div>
+            <div class="recent-absentees">
+                <h3 style="font-size:1.1rem; margin-bottom:0.5rem;">⏳ Recent absentees (all time)</h3>
+                <div style="overflow-x: auto;">
+                    <table id="recentAbsentTable">
+                        <thead><tr><th>Name</th><th>Date</th><th>Reason</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- edit member modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-card">
+            <span class="close-icon" id="closeModal">&times;</span>
+            <h2 style="margin-bottom:1.2rem;">✏️ Edit member</h2>
+            <form id="editMemberForm">
+                <input type="hidden" id="editMemberId">
+                <input type="text" class="input-field" placeholder="Full name" id="editFullName" required style="margin-bottom:0.8rem;">
+                <input type="tel" class="input-field" placeholder="Phone" id="editPhone" style="margin-bottom:0.8rem;">
+                <input type="email" class="input-field" placeholder="Email" id="editEmail" style="margin-bottom:0.8rem;">
+                <select class="input-field" id="editGender" style="margin-bottom:0.8rem;"><option>Male</option><option>Female</option></select>
+                <input type="date" class="input-field" id="editDateJoined" style="margin-bottom:0.8rem;">
+                <select class="input-field" id="editRole" style="margin-bottom:0.8rem;"><option>Member</option><option>Leader</option><option>Assistant Leader</option></select>
+                <select class="input-field" id="editStatus" style="margin-bottom:1.2rem;"><option>Active</option><option>Inactive</option></select>
+                <button type="submit" class="btn btn-primary" style="width:100%;">Update member</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        let members = JSON.parse(localStorage.getItem('cac_members')) || [];
+        let attendances = JSON.parse(localStorage.getItem('cac_attendance')) || [];
+        
+        // Current selected date for attendance view
+        let selectedDate = new Date().toISOString().split('T')[0];
+
+        function saveAll() {
+            localStorage.setItem('cac_members', JSON.stringify(members));
+            localStorage.setItem('cac_attendance', JSON.stringify(attendances));
+            renderAll();
+            updateMonthlyPreview();
+        }
+
+        // Initialize with comprehensive sample data for multiple months
+        if (members.length === 0) {
+            members = [
+                { id: '1', fullName: 'Esther Oyedeji', phone: '0801234567', email: 'esther@ex.com', gender: 'Female', dateJoined: '2024-01-10', role: 'Leader', status: 'Active', photo: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'%23d4b68a\'/%3E%3Ctext x=\'50\' y=\'65\' font-size=\'40\' text-anchor=\'middle\' fill=\'%231e2a41\' font-family=\'Inter\'%3EE%3C/text%3E%3C/svg%3E' },
+                { id: '2', fullName: 'David Akinola', phone: '0902345678', email: 'david@ex.com', gender: 'Male', dateJoined: '2024-02-15', role: 'Assistant Leader', status: 'Active', photo: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'%232c6e63\'/%3E%3Ctext x=\'50\' y=\'65\' font-size=\'40\' text-anchor=\'middle\' fill=\'%23ffffff\' font-family=\'Inter\'%3ED%3C/text%3E%3C/svg%3E' },
+                { id: '3', fullName: 'Ruth Caleb', phone: '0703344556', email: 'ruth@ex.com', gender: 'Female', dateJoined: '2024-03-01', role: 'Member', status: 'Active', photo: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'%23d4b68a\'/%3E%3Ctext x=\'50\' y=\'65\' font-size=\'40\' text-anchor=\'middle\' fill=\'%231e2a41\' font-family=\'Inter\'%3ER%3C/text%3E%3C/svg%3E' },
+                { id: '4', fullName: 'Samuel Ige', phone: '0819988776', email: 'samuel@ex.com', gender: 'Male', dateJoined: '2024-04-20', role: 'Member', status: 'Inactive', photo: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'45\' fill=\'%23999999\'/%3E%3Ctext x=\'50\' y=\'65\' font-size=\'40\' text-anchor=\'middle\' fill=\'%23ffffff\' font-family=\'Inter\'%3ES%3C/text%3E%3C/svg%3E' },
+            ];
+        }
+
+        // Generate comprehensive sample attendance data for multiple months if empty
+        if (attendances.length === 0) {
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const reasons = ['Sick - Malaria', 'Travel - Out of town', 'Family emergency', 'Work commitment', 'Personal reasons', 'Weather - Heavy rain', 'Transport issues', 'Health appointment', 'Bereavement', 'Wedding ceremony'];
+            
+            // Generate data for last 6 months to show history
+            for (let monthOffset = -5; monthOffset <= 0; monthOffset++) {
+                const targetDate = new Date(currentYear, today.getMonth() + monthOffset, 1);
+                const year = targetDate.getFullYear();
+                const month = targetDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                // Generate sessions for Sundays, Wednesdays, Saturdays
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day);
+                    const dayOfWeek = date.getDay();
+                    
+                    // Only create sessions for Sunday (0), Wednesday (3), Saturday (6)
+                    if (dayOfWeek === 0 || dayOfWeek === 3 || dayOfWeek === 6) {
+                        const dateStr = date.toISOString().split('T')[0];
+                        const meetingType = dayOfWeek === 0 ? 'Sunday' : dayOfWeek === 3 ? 'Wednesday' : 'Saturday';
+                        
+                        // Random attendance for each member with realistic patterns
+                        members.forEach(member => {
+                            if (member.status === 'Active') {
+                                // Different attendance patterns for different members
+                                let probability = 0.8; // Default 80%
+                                if (member.id === '1') probability = 0.95; // Esther is very faithful
+                                if (member.id === '2') probability = 0.7; // David travels sometimes
+                                if (member.id === '3') probability = 0.85; // Ruth is consistent
+                                
+                                const present = Math.random() < probability;
+                                const randomReason = reasons[Math.floor(Math.random() * reasons.length)];
+                                attendances.push({
+                                    memberId: member.id,
+                                    date: dateStr,
+                                    meetingType: meetingType,
+                                    present: present,
+                                    timeIn: present ? '09:00' : '',
+                                    timeOut: present ? '11:00' : '',
+                                    reason: present ? '' : randomReason
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+            saveAll();
+        }
+
+        function getMeetingType(dateStr) {
+            const d = new Date(dateStr + 'T12:00:00');
+            const day = d.getDay();
+            if (day === 0) return 'Sunday';
+            if (day === 3) return 'Wednesday';
+            if (day === 6) return 'Saturday';
+            return 'Other';
+        }
+
+        function renderAll() {
+            updateDashboardNumbers();
+            renderAttendanceForDate(selectedDate);
+            renderRecentAbsentees();
+            renderMonthlyChart();
+            updateMonthlyPreview();
+            document.getElementById('attendanceDate').value = selectedDate;
+            document.getElementById('selectedDateLabel').innerHTML = `<strong>${selectedDate}</strong> (${getMeetingType(selectedDate)})`;
+        }
+
+        function updateDashboardNumbers() {
+            const total = members.length;
+            const totalSessions = [...new Set(attendances.map(a => a.date))].length;
+            
+            // Calculate overall average attendance
+            const allAttendances = attendances.filter(a => {
+                const member = members.find(m => m.id === a.memberId);
+                return member && member.status === 'Active';
+            });
+            
+            const presentCount = allAttendances.filter(a => a.present).length;
+            const avgPercentage = allAttendances.length > 0 ? ((presentCount / allAttendances.length) * 100).toFixed(1) : 0;
+            
+            document.getElementById('totalMembersDisplay').innerText = total;
+            document.getElementById('totalSessionsDisplay').innerText = totalSessions;
+            document.getElementById('avgAttendanceDisplay').innerText = avgPercentage + '%';
+        }
+
+        function renderAttendanceForDate(date) {
+            const container = document.getElementById('mobileAttendanceList');
+            const meetingType = getMeetingType(date);
+
+            let html = '';
+            members.filter(m => m.status === 'Active').forEach(member => {
+                const att = attendances.find(a => a.memberId === member.id && a.date === date) || 
+                            { present: false, timeIn: '', timeOut: '', reason: '' };
+                const monthlyPerc = computeMonthlyPercentage(member.id, new Date(date));
+                const photoStyle = member.photo ? `background-image: url('${member.photo}');` : '';
+                html += `<div class="member-attendance-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="photo-preview" style="${photoStyle}">${!member.photo ? '<i class="fas fa-user"></i>' : ''}</div>
+                            <span class="member-name">${member.fullName}</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn-edit edit-btn" data-memberid="${member.id}"><i class="fas fa-edit"></i></button>
+                            <button class="btn-delete delete-btn" data-memberid="${member.id}"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </div>
+                    <div class="att-row">
+                        <span style="min-width:65px;">Present?</span>
+                        <input type="checkbox" class="attPresent" data-member="${member.id}" ${att.present ? 'checked' : ''} style="accent-color:var(--emerald); transform:scale(1.2);">
+                        <span style="margin-left:auto; font-size:0.9rem;">${monthlyPerc.toFixed(0)}% month</span>
+                    </div>
+                    <div class="att-row">
+                        <span style="min-width:65px;">Time in</span>
+                        <input type="time" class="attTimeIn" data-member="${member.id}" value="${att.timeIn || ''}" style="border:1px solid #ccc; border-radius:30px; padding:6px;">
+                    </div>
+                    <div class="att-row">
+                        <span style="min-width:65px;">Time out</span>
+                        <input type="time" class="attTimeOut" data-member="${member.id}" value="${att.timeOut || ''}" style="border:1px solid #ccc; border-radius:30px; padding:6px;">
+                    </div>
+                    <div class="att-row">
+                        <span style="min-width:65px;">Reason</span>
+                        <input type="text" class="attReason" data-member="${member.id}" placeholder="if absent" value="${att.reason || ''}" style="border:1px solid #ccc; border-radius:30px; padding:6px; flex:1;">
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+
+            // Attach edit & delete events
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const memberId = btn.dataset.memberid;
+                    const member = members.find(m => m.id === memberId);
+                    if (member) openEditModal(member);
+                });
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const memberId = btn.dataset.memberid;
+                    if (confirm('Delete member? All attendance will be removed.')) {
+                        members = members.filter(m => m.id !== memberId);
+                        attendances = attendances.filter(a => a.memberId !== memberId);
+                        saveAll();
+                    }
+                });
+            });
+        }
+
+        function computeMonthlyPercentage(memberId, targetDate) {
+            const year = targetDate.getFullYear();
+            const month = targetDate.getMonth();
+            const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+            const lastDay = new Date(year, month+1, 0).toISOString().split('T')[0];
+            const monthAtt = attendances.filter(a => a.memberId === memberId && a.date >= firstDay && a.date <= lastDay);
+            if (monthAtt.length === 0) return 0;
+            return (monthAtt.filter(a => a.present).length / monthAtt.length) * 100;
+        }
+
+        // Comprehensive monthly preview with tabular format
+        function updateMonthlyPreview() {
+            const month = parseInt(document.getElementById('reportMonth').value);
+            const year = parseInt(document.getElementById('reportYear').value);
+            
+            const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+            const lastDay = new Date(year, month+1, 0).toISOString().split('T')[0];
+            
+            // Get all attendances for this month
+            const monthAttendances = attendances.filter(a => a.date >= firstDay && a.date <= lastDay);
+            
+            // Get unique session dates
+            const sessionDates = [...new Set(monthAttendances.map(a => a.date))].sort();
+            
+            // Count by meeting type
+            const sundaySessions = sessionDates.filter(d => getMeetingType(d) === 'Sunday').length;
+            const wednesdaySessions = sessionDates.filter(d => getMeetingType(d) === 'Wednesday').length;
+            const saturdaySessions = sessionDates.filter(d => getMeetingType(d) === 'Saturday').length;
+            
+            // Update stats
+            document.getElementById('totalSessionsMonth').innerText = sessionDates.length;
+            document.getElementById('sundaySessions').innerText = sundaySessions;
+            document.getElementById('wednesdaySessions').innerText = wednesdaySessions;
+            document.getElementById('saturdaySessions').innerText = saturdaySessions;
+            
+            // Render Session Table
+            const sessionTableBody = document.getElementById('sessionTableBody');
+            let sessionRows = '';
+            sessionDates.forEach(date => {
+                const dayAttendances = monthAttendances.filter(a => a.date === date);
+                const presentCount = dayAttendances.filter(a => a.present).length;
+                const absentCount = dayAttendances.filter(a => !a.present).length;
+                const totalCount = dayAttendances.length;
+                const percentage = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : 0;
+                const meetingType = getMeetingType(date);
+                
+                // Get absentees with reasons
+                const absentees = dayAttendances.filter(a => !a.present).map(a => {
+                    const member = members.find(m => m.id === a.memberId);
+                    return member ? `${member.fullName} (${a.reason || 'No reason'})` : '?';
+                }).join('; ');
+                
+                sessionRows += `
+                    <tr>
+                        <td>${date}</td>
+                        <td>${meetingType}</td>
+                        <td>${presentCount}</td>
+                        <td>${absentCount}</td>
+                        <td>${percentage}%</td>
+                        <td style="color: #b16a5a; font-size: 0.85rem;">${absentees || 'None'}</td>
+                    </tr>
+                `;
+            });
+            sessionTableBody.innerHTML = sessionRows || '<tr><td colspan="6" style="text-align: center;">No sessions this month</td></tr>';
+            
+            // Render Member Summary Table
+            const memberSummaryBody = document.getElementById('memberSummaryBody');
+            let memberRows = '';
+            
+            const activeMembers = members.filter(m => m.status === 'Active');
+            activeMembers.forEach(member => {
+                const memberAtt = monthAttendances.filter(a => a.memberId === member.id);
+                if (memberAtt.length > 0) {
+                    const presentCount = memberAtt.filter(a => a.present).length;
+                    const absentCount = memberAtt.filter(a => !a.present).length;
+                    const percentage = ((presentCount / memberAtt.length) * 100).toFixed(1);
+                    
+                    // Get absence reasons for this member
+                    const absences = memberAtt.filter(a => !a.present && a.reason);
+                    const reasonSummary = absences.length > 0 ? 
+                        absences.map(a => `${a.date.split('-')[2]}: ${a.reason}`).join('; ') : 
+                        'No absences';
+                    
+                    memberRows += `
+                        <tr>
+                            <td><strong>${member.fullName}</strong></td>
+                            <td>${member.role}</td>
+                            <td>${memberAtt.length}</td>
+                            <td>${presentCount}</td>
+                            <td>${absentCount}</td>
+                            <td>${percentage}%</td>
+                            <td style="color: #b16a5a; font-size: 0.85rem;">${reasonSummary}</td>
+                        </tr>
+                    `;
+                }
+            });
+            memberSummaryBody.innerHTML = memberRows || '<tr><td colspan="7" style="text-align: center;">No attendance data</td></tr>';
+        }
+
+        // Refresh attendance for selected date
+        document.getElementById('refreshAttendanceBtn').addEventListener('click', function() {
+            const date = selectedDate;
+            document.querySelectorAll('.attPresent').forEach(cb => {
+                const memberId = cb.dataset.member;
+                const present = cb.checked;
+                const timeIn = document.querySelector(`.attTimeIn[data-member="${memberId}"]`).value;
+                const timeOut = document.querySelector(`.attTimeOut[data-member="${memberId}"]`).value;
+                const reason = document.querySelector(`.attReason[data-member="${memberId}"]`).value;
+                let idx = attendances.findIndex(a => a.memberId === memberId && a.date === date);
+                if (idx >= 0) {
+                    attendances[idx] = { ...attendances[idx], present, timeIn, timeOut, reason };
+                } else {
+                    attendances.push({ memberId, date: date, meetingType: getMeetingType(date), present, timeIn, timeOut, reason });
+                }
+            });
+            saveAll();
+            renderAttendanceForDate(date);
+        });
+
+        // Date navigation
+        document.getElementById('attendanceDate').addEventListener('change', function(e) {
+            selectedDate = e.target.value;
+            renderAttendanceForDate(selectedDate);
+            document.getElementById('selectedDateLabel').innerHTML = `<strong>${selectedDate}</strong> (${getMeetingType(selectedDate)})`;
+        });
+
+        document.getElementById('prevDateBtn').addEventListener('click', function() {
+            const date = new Date(selectedDate);
+            date.setDate(date.getDate() - 1);
+            selectedDate = date.toISOString().split('T')[0];
+            document.getElementById('attendanceDate').value = selectedDate;
+            renderAttendanceForDate(selectedDate);
+            document.getElementById('selectedDateLabel').innerHTML = `<strong>${selectedDate}</strong> (${getMeetingType(selectedDate)})`;
+        });
+
+        document.getElementById('nextDateBtn').addEventListener('click', function() {
+            const date = new Date(selectedDate);
+            date.setDate(date.getDate() + 1);
+            selectedDate = date.toISOString().split('T')[0];
+            document.getElementById('attendanceDate').value = selectedDate;
+            renderAttendanceForDate(selectedDate);
+            document.getElementById('selectedDateLabel').innerHTML = `<strong>${selectedDate}</strong> (${getMeetingType(selectedDate)})`;
+        });
+
+        document.getElementById('todayDateBtn').addEventListener('click', function() {
+            selectedDate = new Date().toISOString().split('T')[0];
+            document.getElementById('attendanceDate').value = selectedDate;
+            renderAttendanceForDate(selectedDate);
+            document.getElementById('selectedDateLabel').innerHTML = `<strong>${selectedDate}</strong> (${getMeetingType(selectedDate)})`;
+        });
+
+        // Recent absentees (all time)
+        function renderRecentAbsentees() {
+            const tbody = document.querySelector('#recentAbsentTable tbody');
+            const recent = attendances.filter(a => !a.present).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+            let rows = '';
+            recent.forEach(r => {
+                const member = members.find(m => m.id === r.memberId) || { fullName: 'Unknown' };
+                rows += `<tr><td>${member.fullName}</td><td>${r.date}</td><td><span class="reason-badge">${r.reason || 'Not specified'}</span></td></tr>`;
+            });
+            tbody.innerHTML = rows;
+        }
+
+        function renderMonthlyChart() {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            if (window.myChart) window.myChart.destroy();
+            
+            // Calculate weekly averages for the chart using last 4 weeks
+            const weeks = ['Week -3', 'Week -2', 'Week -1', 'This Week'];
+            const weeklyData = [0, 0, 0, 0];
+            
+            const today = new Date();
+            for (let i = 0; i < 4; i++) {
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - (21 - i*7)); // 3 weeks ago to current
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                
+                const weekAttendances = attendances.filter(a => {
+                    const date = new Date(a.date);
+                    return date >= weekStart && date <= weekEnd;
+                });
+                
+                if (weekAttendances.length > 0) {
+                    const presentCount = weekAttendances.filter(a => a.present).length;
+                    weeklyData[i] = Math.round((presentCount / weekAttendances.length) * 100);
+                }
+            }
+            
+            window.myChart = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: weeks, 
+                    datasets: [{ 
+                        data: weeklyData, 
+                        borderColor: '#2c6e63', 
+                        backgroundColor: 'rgba(44,110,99,0.05)', 
+                        tension: 0.2,
+                        fill: true
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        }
+
+        // Add member with photo
+        document.getElementById('addMemberForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fullName = document.getElementById('fullName').value.trim();
+            if (!fullName) return;
+            
+            const photoFile = document.getElementById('profilePhoto').files[0];
+            if (photoFile) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    members.push({
+                        id: Date.now()+'',
+                        fullName, 
+                        phone: document.getElementById('phone').value, 
+                        email: document.getElementById('email').value,
+                        gender: document.getElementById('gender').value, 
+                        dateJoined: document.getElementById('dateJoined').value,
+                        role: document.getElementById('role').value, 
+                        status: document.getElementById('status').value, 
+                        photo: ev.target.result
+                    });
+                    saveAll();
+                };
+                reader.readAsDataURL(photoFile);
+            } else {
+                members.push({
+                    id: Date.now()+'',
+                    fullName, 
+                    phone: document.getElementById('phone').value, 
+                    email: document.getElementById('email').value,
+                    gender: document.getElementById('gender').value, 
+                    dateJoined: document.getElementById('dateJoined').value,
+                    role: document.getElementById('role').value, 
+                    status: document.getElementById('status').value, 
+                    photo: ''
+                });
+                saveAll();
+            }
+            e.target.reset();
+            document.getElementById('photoPreview').innerHTML = '<i class="fas fa-user"></i>';
+            document.getElementById('photoPreview').style.backgroundImage = '';
+        });
+
+        // Photo preview
+        document.getElementById('profilePhoto').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById('photoPreview').style.backgroundImage = `url('${ev.target.result}')`;
+                    document.getElementById('photoPreview').innerHTML = '';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Edit modal functions
+        const modal = document.getElementById('editModal');
+        const closeModal = document.getElementById('closeModal');
+        closeModal.onclick = ()=> modal.style.display = 'none';
+        window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+
+        function openEditModal(member) {
+            document.getElementById('editMemberId').value = member.id;
+            document.getElementById('editFullName').value = member.fullName || '';
+            document.getElementById('editPhone').value = member.phone || '';
+            document.getElementById('editEmail').value = member.email || '';
+            document.getElementById('editGender').value = member.gender || 'Male';
+            document.getElementById('editDateJoined').value = member.dateJoined || '';
+            document.getElementById('editRole').value = member.role || 'Member';
+            document.getElementById('editStatus').value = member.status || 'Active';
+            modal.style.display = 'flex';
+        }
+
+        document.getElementById('editMemberForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('editMemberId').value;
+            const index = members.findIndex(m => m.id === id);
+            if (index !== -1) {
+                members[index] = {
+                    ...members[index],
+                    fullName: document.getElementById('editFullName').value,
+                    phone: document.getElementById('editPhone').value,
+                    email: document.getElementById('editEmail').value,
+                    gender: document.getElementById('editGender').value,
+                    dateJoined: document.getElementById('editDateJoined').value,
+                    role: document.getElementById('editRole').value,
+                    status: document.getElementById('editStatus').value,
+                };
+                saveAll();
+                modal.style.display = 'none';
+            }
+        });
+
+        // Search functionality
+        document.getElementById('searchName').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            if (term === '') { 
+                renderAttendanceForDate(selectedDate); 
+                return; 
+            }
+            const container = document.getElementById('mobileAttendanceList');
+            let html = '';
+            members.filter(m => m.status === 'Active' && m.fullName.toLowerCase().includes(term)).forEach(member => {
+                const att = attendances.find(a => a.memberId === member.id && a.date === selectedDate) || { present: false, timeIn: '', timeOut: '', reason: '' };
+                const monthlyPerc = computeMonthlyPercentage(member.id, new Date(selectedDate));
+                const photoStyle = member.photo ? `background-image: url('${member.photo}');` : '';
+                html += `<div class="member-attendance-card">
+                    <div style="display:flex; justify-content:space-between;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="photo-preview" style="${photoStyle}">${!member.photo ? '<i class="fas fa-user"></i>' : ''}</div>
+                            <span class="member-name">${member.fullName}</span>
+                        </div>
+                        <div><button class="btn-edit edit-btn" data-memberid="${member.id}"><i class="fas fa-edit"></i></button>
+                        <button class="btn-delete delete-btn" data-memberid="${member.id}"><i class="fas fa-trash-alt"></i></button></div>
+                    </div>
+                    <div class="att-row"><span>Present?</span><input type="checkbox" class="attPresent" data-member="${member.id}" ${att.present ? 'checked' : ''}></div>
+                    <div class="att-row"><span>In</span><input type="time" class="attTimeIn" data-member="${member.id}" value="${att.timeIn || ''}"></div>
+                    <div class="att-row"><span>Out</span><input type="time" class="attTimeOut" data-member="${member.id}" value="${att.timeOut || ''}"></div>
+                    <div class="att-row"><span>Reason</span><input type="text" class="attReason" data-member="${member.id}" value="${att.reason || ''}"></div>
+                </div>`;
+            });
+            container.innerHTML = html || '<p style="padding:1rem;">No matching members</p>';
+            
+            // Re-attach events
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', e => {
+                const m = members.find(mx => mx.id === btn.dataset.memberid); 
+                if(m) openEditModal(m);
+            }));
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', e => {
+                if(confirm('Delete?')) {
+                    members = members.filter(m => m.id !== btn.dataset.memberid);
+                    attendances = attendances.filter(a => a.memberId !== btn.dataset.memberid);
+                    saveAll();
+                }
+            }));
+        });
+
+        // Enhanced monthly report generation with tabular format
+        document.getElementById('generateMonthlyReport').addEventListener('click', function() {
+            const month = parseInt(document.getElementById('reportMonth').value);
+            const year = parseInt(document.getElementById('reportYear').value);
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            const monthName = monthNames[month];
+            
+            const firstDay = new Date(year, month, 1).toISOString().split('T')[0];
+            const lastDay = new Date(year, month+1, 0).toISOString().split('T')[0];
+            
+            const monthAttendances = attendances.filter(a => a.date >= firstDay && a.date <= lastDay);
+            const sessionDates = [...new Set(monthAttendances.map(a => a.date))].sort();
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('landscape');
+            
+            // Title
+            doc.setFontSize(20);
+            doc.setTextColor(30, 42, 65);
+            doc.text('CAC Good Works Prayer Unit', 14, 15);
+            doc.setFontSize(16);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Monthly Attendance Report - ${monthName} ${year}`, 14, 25);
+            
+            // Session Statistics
+            doc.setFontSize(11);
+            doc.setTextColor(44, 110, 99);
+            doc.text(`Total Sessions: ${sessionDates.length}`, 14, 35);
+            
+            // Count by type
+            const sundaySessions = sessionDates.filter(d => getMeetingType(d) === 'Sunday').length;
+            const wednesdaySessions = sessionDates.filter(d => getMeetingType(d) === 'Wednesday').length;
+            const saturdaySessions = sessionDates.filter(d => getMeetingType(d) === 'Saturday').length;
+            
+            doc.text(`Sunday: ${sundaySessions} | Wednesday: ${wednesdaySessions} | Saturday: ${saturdaySessions}`, 14, 42);
+            
+            // Calculate member statistics with absence reasons
+            const activeMembers = members.filter(m => m.status === 'Active');
+            const memberStats = [];
+            
+            activeMembers.forEach(member => {
+                const memberAtt = monthAttendances.filter(a => a.memberId === member.id);
+                const presentCount = memberAtt.filter(a => a.present).length;
+                const absentCount = memberAtt.filter(a => !a.present).length;
+                const percentage = memberAtt.length > 0 ? (presentCount / memberAtt.length) * 100 : 0;
+                
+                // Get absence details
+                const absences = memberAtt.filter(a => !a.present).map(a => ({
+                    date: a.date,
+                    reason: a.reason || 'Not specified'
+                }));
+                
+                memberStats.push({
+                    name: member.fullName,
+                    role: member.role,
+                    present: presentCount,
+                    absent: absentCount,
+                    possible: memberAtt.length,
+                    percentage: percentage,
+                    photo: member.photo,
+                    absences: absences
+                });
+            });
+            
+            // Sort by attendance percentage
+            memberStats.sort((a, b) => b.percentage - a.percentage);
+            
+            // Member summary table with present/absent counts
+            doc.autoTable({
+                head: [['Name', 'Role', 'Total Sessions', 'Present', 'Absent', 'Attendance %', 'Absence Reasons']],
+                body: memberStats.map(stat => {
+                    const absenceText = stat.absences.length > 0 ? 
+                        stat.absences.map(a => `${a.date.split('-')[2]}: ${a.reason}`).join('; ') : 
+                        'No absences';
+                    return [
+                        stat.name,
+                        stat.role,
+                        stat.possible.toString(),
+                        stat.present.toString(),
+                        stat.absent.toString(),
+                        stat.percentage.toFixed(1) + '%',
+                        absenceText
+                    ];
+                }),
+                startY: 50,
+                theme: 'striped',
+                headStyles: { fillColor: [44, 110, 99] },
+                styles: { fontSize: 8, cellPadding: 2 },
+                columnStyles: { 
+                    0: { cellWidth: 35 },
+                    1: { cellWidth: 25 },
+                    2: { cellWidth: 18 },
+                    3: { cellWidth: 18 },
+                    4: { cellWidth: 18 },
+                    5: { cellWidth: 22 },
+                    6: { cellWidth: 70 }
+                }
+            });
+            
+            // Session-by-session table with absentees
+            const sessionY = doc.lastAutoTable.finalY + 10;
+            doc.setFontSize(12);
+            doc.text('Session Details Table:', 14, sessionY);
+            
+            const sessionData = sessionDates.map(date => {
+                const dayAttendances = monthAttendances.filter(a => a.date === date);
+                const present = dayAttendances.filter(a => a.present).length;
+                const absent = dayAttendances.filter(a => !a.present).length;
+                const total = dayAttendances.length;
+                const percentage = ((present / total) * 100).toFixed(1);
+                const dayType = getMeetingType(date);
+                
+                // Get absentees with reasons
+                const absentees = dayAttendances.filter(a => !a.present).map(a => {
+                    const member = members.find(m => m.id === a.memberId);
+                    return member ? `${member.fullName} (${a.reason || 'No reason'})` : '';
+                }).join('; ');
+                
+                return [date, dayType, present.toString(), absent.toString(), percentage + '%', absentees];
+            });
+            
+            doc.autoTable({
+                head: [['Date', 'Type', 'Present', 'Absent', '%', 'Absentees (Reasons)']],
+                body: sessionData,
+                startY: sessionY + 5,
+                theme: 'striped',
+                headStyles: { fillColor: [44, 110, 99] },
+                styles: { fontSize: 7, cellPadding: 1.5 },
+                columnStyles: { 
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 18 },
+                    2: { cellWidth: 15 },
+                    3: { cellWidth: 15 },
+                    4: { cellWidth: 15 },
+                    5: { cellWidth: 95 }
+                }
+            });
+            
+            doc.save(`CAC_Report_${monthName}_${year}_Tabular.pdf`);
+        });
+
+        // Update preview when month/year changes
+        document.getElementById('reportMonth').addEventListener('change', updateMonthlyPreview);
+        document.getElementById('reportYear').addEventListener('change', updateMonthlyPreview);
+
+        // Excel export
+        document.getElementById('exportExcelBtn').addEventListener('click', function() {
+            const memberRows = members.map(m => [m.id, m.fullName, m.phone, m.email, m.gender, m.dateJoined, m.role, m.status, m.photo ? 'Yes' : 'No']);
+            memberRows.unshift(['ID', 'Name', 'Phone', 'Email', 'Gender', 'Joined', 'Role', 'Status', 'Has Photo']);
+            
+            const attRows = attendances.map(a => {
+                const mem = members.find(m => m.id === a.memberId) || { fullName: '?' };
+                return [mem.fullName, a.date, a.meetingType, a.present ? 'Present' : 'Absent', a.timeIn || '', a.timeOut || '', a.reason || ''];
+            });
+            attRows.unshift(['Member', 'Date', 'Meeting', 'Status', 'TimeIn', 'TimeOut', 'Reason']);
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(memberRows), "Members");
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(attRows), "Attendance");
+            XLSX.writeFile(wb, "CAC_Data.xlsx");
+        });
+
+        // Initialize
+        renderAll();
+        updateMonthlyPreview();
+    })();
+</script>
+<!-- footer -->
+<div style="text-align: center; margin: 1.5rem 0 0.5rem; font-size: 0.8rem; color: #b9b1a6;">CAC Prayer Unit · Tabular monthly reports with present/absent counts and reasons</div>
+</body>
+</html>
