@@ -1038,6 +1038,30 @@
 
     <script>
         // ============ FIREBASE CONFIGURATION ============
+// Initialize Firebase with YOUR config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAlUpIbQH1k678yqHnhxMiyYJ_NZ3zaeKo",
+  authDomain: "prayer-72a4b.firebaseapp.com",
+  projectId: "prayer-72a4b",
+  storageBucket: "prayer-72a4b.firebasestorage.app",
+  messagingSenderId: "629914619936",
+  appId: "1:629914619936:web:ebe967ca3da7198982ac45"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  
+  // Get references to Firebase services
+  const db = firebase.firestore();
+  const storage = firebase.storage();
+  const auth = firebase.auth();
+
+  // Add all your app logic here...
+  // - Handle member form submission
+  // - Handle attendance marking
+  // - Handle session creation
+  // - Handle data sync with Firebase
+  // etc.
         let firebaseConfig = null;
         let db = null;
         let storage = null;
