@@ -985,6 +985,44 @@
             let currentPrayerLeader = null;
             let currentTab = 'members-tab';
 
+              // Subscribe to Firestore so data syncs across browsers/devices.
+        // Each listener refreshes the local cache and re-renders the active view.
+        function subscribeToRemoteData() {
+            const refreshActive = () => {
+                const activeSection = document.querySelector('.nav-link.active')?.textContent.toLowerCase() || 'dashboard';
+                if (activeSection === 'dashboard') loadDashboard();
+                if (activeSection === 'members') loadMembers();
+                if (activeSection === 'attendance') loadAttendance();
+               
+                if (activeSection === 'sessions') sessions();
+                if (activeSection === 'settings') loadSettings();
+                if (activeSection === 'reports') loadReport();
+            };
+
+            window.onMembersChange((data) => {
+                members = data.map(m => ({ attendance: 0, picture: '', ...m }));
+                refreshActive();
+            });
+
+            // Attendance listener: orderBy("date") drops docs without a `date` field,
+            // so we read the raw collection instead to stay tolerant of older data shapes.
+            window.db.collection('attendance').onSnapshot((snapshot) => {
+                const records = [];
+                snapshot.forEach(doc => records.push({ id: doc.id, ...doc.data() }));
+                attendance = records;
+                refreshActive();
+            });
+
+            window.onSessionsChange((data) => {
+                sessions = data;
+                refreshActive();
+            });
+
+        // Kept as a no-op for any legacy call sites. Firestore is the source of truth.
+        function saveAllData() {}
+
+
+
             // Clean up old isPrayerLeader property if exists
             members = members.map(m => {
                 const { isPrayerLeader, ...rest } = m;
