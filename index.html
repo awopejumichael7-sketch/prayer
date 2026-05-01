@@ -7,16 +7,19 @@
     <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
     <!-- Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js">
-    </script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
     <style>
+        /* All existing styles... */
         * {
             margin: 0;
             padding: 0;
@@ -200,16 +203,6 @@
             transform: translateY(-2px);
         }
 
-        .btn-leader {
-            background: #fff3cd;
-            color: #856404;
-            border: 2px solid #ffc107;
-        }
-        .btn-leader:hover {
-            background: #ffe69c;
-            transform: translateY(-1px);
-        }
-
         .btn-danger {
             background: var(--danger);
             color: white;
@@ -223,6 +216,59 @@
             font-size: 0.8rem;
         }
 
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toast-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .firebase-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .firebase-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .firebase-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Rest of existing styles from your original file... */
         .session-badge {
             display: inline-flex;
             align-items: center;
@@ -429,6 +475,9 @@
             backdrop-filter: blur(8px);
             animation: fadeIn 0.2s ease;
         }
+        .modal.active {
+            display: flex;
+        }
         .modal-card {
             background: white;
             border-radius: 24px;
@@ -489,12 +538,6 @@
             font-size: 1.2rem;
         }
 
-        .download-options {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
         @media (max-width: 768px) {
             .grid-2col, .grid-3col, .grid-4col {
                 grid-template-columns: 1fr;
@@ -509,6 +552,12 @@
 </head>
 <body>
     <div class="app">
+        <!-- Firebase Status Indicator -->
+        <div id="firebaseStatus" class="firebase-status connected" style="display: none;">
+            <i class="fas fa-circle" style="font-size: 0.6rem;"></i>
+            <span id="firebaseStatusText">Firebase Connected</span>
+        </div>
+
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:1rem;">
             <div>
@@ -516,6 +565,7 @@
                 <h1 style="margin-top: 0.1rem;">Prayer Unit <span style="font-weight: 300; color: var(--text-secondary);">Attendance</span></h1>
             </div>
             <div class="flex-row">
+                <button class="btn btn-outline" id="syncDataBtn"><i class="fas fa-sync"></i> Sync</button>
                 <button class="btn btn-outline" id="exportExcelBtn"><i class="far fa-file-excel"></i> Export Excel</button>
                 <button class="btn btn-gold" id="headerPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF Report</button>
             </div>
@@ -916,20 +966,32 @@
                 <h2 style="margin-bottom: 1.2rem;">⚙️ Settings & Data Management</h2>
                 <div class="grid-2col">
                     <div>
+                        <h3 style="margin-bottom: 0.8rem;">Firebase Configuration</h3>
+                        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                            <div style="background: #f5f4f1; padding: 1rem; border-radius: 12px; font-size: 0.85rem;">
+                                <p style="margin-bottom: 0.5rem;"><strong>Configure your Firebase:</strong></p>
+                                <ol style="padding-left: 1.5rem; margin-bottom: 0.5rem;">
+                                    <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color: var(--accent-navy); text-decoration: underline;">Firebase Console</a></li>
+                                    <li>Create a new project or select existing</li>
+                                    <li>Add Web App to your project</li>
+                                    <li>Copy your config below</li>
+                                </ol>
+                            </div>
+                            <textarea id="firebaseConfig" class="input-field" rows="4" placeholder="Paste your Firebase config here as JSON..." style="font-size: 0.8rem; font-family: monospace;"></textarea>
+                            <button class="btn btn-primary" id="saveFirebaseConfigBtn" style="width: 100%; justify-content: center;">
+                                <i class="fas fa-save"></i> Save Firebase Config
+                            </button>
+                        </div>
+                    </div>
+                    <div>
                         <h3 style="margin-bottom: 0.8rem;">Data Operations</h3>
                         <div style="display: flex; flex-direction: column; gap: 0.8rem;">
                             <button class="btn btn-outline" id="exportDataBtn"><i class="fas fa-download"></i> Export All Data (JSON)</button>
                             <button class="btn btn-outline" id="importDataBtn"><i class="fas fa-upload"></i> Import Data (JSON)</button>
                             <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                            <button class="btn btn-outline" id="syncFirebaseBtn"><i class="fas fa-cloud-upload-alt"></i> Sync to Firebase</button>
+                            <button class="btn btn-outline" id="loadFromFirebaseBtn"><i class="fas fa-cloud-download-alt"></i> Load from Firebase</button>
                             <button class="btn btn-danger" id="resetDataBtn"><i class="fas fa-trash-alt"></i> Reset All Data</button>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 style="margin-bottom: 0.8rem;">Quick Actions</h3>
-                        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
-                            <button class="btn btn-secondary" id="generateSampleDataBtn"><i class="fas fa-database"></i> Generate Sample Data</button>
-                            <button class="btn btn-outline" id="cleanupDataBtn"><i class="fas fa-broom"></i> Clean Up Old Records</button>
-                            <button class="btn btn-gold" id="downloadFullReportPdfBtn"><i class="fas fa-file-pdf"></i> Download Full Report PDF</button>
                         </div>
                     </div>
                 </div>
@@ -975,8 +1037,403 @@
     </div>
 
     <script>
+        // ============ FIREBASE CONFIGURATION ============
+        let firebaseConfig = null;
+        let db = null;
+        let storage = null;
+        let isFirebaseReady = false;
+
+        // Initialize Firebase
+        function initializeFirebase() {
+            const configString = localStorage.getItem('firebaseConfig');
+            if (!configString) {
+                updateFirebaseStatus(false);
+                return;
+            }
+
+            try {
+                firebaseConfig = JSON.parse(configString);
+                
+                // Initialize Firebase
+                if (!window.firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                    db = firebase.firestore();
+                    storage = firebase.storage();
+                    isFirebaseReady = true;
+                    updateFirebaseStatus(true);
+                } else {
+                    db = firebase.firestore();
+                    storage = firebase.storage();
+                    isFirebaseReady = true;
+                    updateFirebaseStatus(true);
+                }
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+                updateFirebaseStatus(false);
+            }
+        }
+
+        function updateFirebaseStatus(connected) {
+            const statusDiv = document.getElementById('firebaseStatus');
+            const statusText = document.getElementById('firebaseStatusText');
+            
+            if (connected) {
+                statusDiv.classList.remove('disconnected');
+                statusDiv.classList.add('connected');
+                statusText.textContent = '✓ Firebase Connected';
+            } else {
+                statusDiv.classList.remove('connected');
+                statusDiv.classList.add('disconnected');
+                statusText.textContent = '⚠ Firebase Disconnected - Using Local Storage';
+            }
+            statusDiv.style.display = 'flex';
+        }
+
+        // ============ FIRESTORE CRUD OPERATIONS ============
+
+        // CREATE/UPDATE Member
+        async function createOrUpdateMember(memberData) {
+            if (!isFirebaseReady) {
+                return memberData;
+            }
+
+            try {
+                const docRef = memberData.id 
+                    ? db.collection('members').doc(memberData.id)
+                    : db.collection('members').doc();
+
+                const finalData = {
+                    ...memberData,
+                    updatedAt: new Date(),
+                    createdAt: memberData.createdAt || new Date()
+                };
+
+                if (!memberData.id) {
+                    finalData.id = docRef.id;
+                }
+
+                await docRef.set(finalData, { merge: true });
+                return finalData;
+            } catch (error) {
+                console.error('Error saving member:', error);
+                showToast('Error saving to Firebase: ' + error.message, 'error');
+                return memberData;
+            }
+        }
+
+        // READ Members
+        async function getMembersFromFirebase() {
+            if (!isFirebaseReady) {
+                return [];
+            }
+
+            try {
+                const snapshot = await db.collection('members').get();
+                const members = [];
+                snapshot.forEach(doc => {
+                    members.push({ id: doc.id, ...doc.data() });
+                });
+                return members;
+            } catch (error) {
+                console.error('Error reading members:', error);
+                showToast('Error loading members from Firebase', 'error');
+                return [];
+            }
+        }
+
+        // UPDATE Member
+        async function updateMember(memberId, updates) {
+            if (!isFirebaseReady) {
+                return;
+            }
+
+            try {
+                updates.updatedAt = new Date();
+                await db.collection('members').doc(memberId).update(updates);
+                showToast('Member updated successfully!');
+            } catch (error) {
+                console.error('Error updating member:', error);
+                showToast('Error updating member: ' + error.message, 'error');
+            }
+        }
+
+        // DELETE Member
+        async function deleteMember(memberId) {
+            if (!isFirebaseReady) {
+                return;
+            }
+
+            try {
+                await db.collection('members').doc(memberId).delete();
+                showToast('Member deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting member:', error);
+                showToast('Error deleting member: ' + error.message, 'error');
+            }
+        }
+
+        // CREATE/UPDATE Attendance
+        async function saveAttendanceToFirebase(attendanceData) {
+            if (!isFirebaseReady) {
+                return attendanceData;
+            }
+
+            try {
+                const docRef = db.collection('attendance').doc(attendanceData.id || `${attendanceData.date}_${attendanceData.sessionType}`);
+                
+                const finalData = {
+                    ...attendanceData,
+                    updatedAt: new Date(),
+                    createdAt: attendanceData.createdAt || new Date()
+                };
+
+                if (!attendanceData.id) {
+                    finalData.id = docRef.id;
+                }
+
+                await docRef.set(finalData, { merge: true });
+                return finalData;
+            } catch (error) {
+                console.error('Error saving attendance:', error);
+                showToast('Error saving attendance to Firebase', 'error');
+                return attendanceData;
+            }
+        }
+
+        // READ Attendance
+        async function getAttendanceFromFirebase(date = null, sessionType = null) {
+            if (!isFirebaseReady) {
+                return [];
+            }
+
+            try {
+                let query = db.collection('attendance');
+                
+                if (date) {
+                    query = query.where('date', '==', date);
+                }
+                if (sessionType) {
+                    query = query.where('sessionType', '==', sessionType);
+                }
+
+                const snapshot = await query.get();
+                const attendance = [];
+                snapshot.forEach(doc => {
+                    attendance.push({ id: doc.id, ...doc.data() });
+                });
+                return attendance;
+            } catch (error) {
+                console.error('Error reading attendance:', error);
+                return [];
+            }
+        }
+
+        // CREATE/UPDATE Session
+        async function saveSessionToFirebase(sessionData) {
+            if (!isFirebaseReady) {
+                return sessionData;
+            }
+
+            try {
+                const docRef = sessionData.id 
+                    ? db.collection('sessions').doc(sessionData.id)
+                    : db.collection('sessions').doc();
+
+                const finalData = {
+                    ...sessionData,
+                    updatedAt: new Date(),
+                    createdAt: sessionData.createdAt || new Date()
+                };
+
+                if (!sessionData.id) {
+                    finalData.id = docRef.id;
+                }
+
+                await docRef.set(finalData, { merge: true });
+                return finalData;
+            } catch (error) {
+                console.error('Error saving session:', error);
+                showToast('Error saving session to Firebase', 'error');
+                return sessionData;
+            }
+        }
+
+        // READ Sessions
+        async function getSessionsFromFirebase() {
+            if (!isFirebaseReady) {
+                return [];
+            }
+
+            try {
+                const snapshot = await db.collection('sessions').orderBy('date', 'desc').get();
+                const sessions = [];
+                snapshot.forEach(doc => {
+                    sessions.push({ id: doc.id, ...doc.data() });
+                });
+                return sessions;
+            } catch (error) {
+                console.error('Error reading sessions:', error);
+                return [];
+            }
+        }
+
+        // UPDATE Session
+        async function updateSession(sessionId, updates) {
+            if (!isFirebaseReady) {
+                return;
+            }
+
+            try {
+                updates.updatedAt = new Date();
+                await db.collection('sessions').doc(sessionId).update(updates);
+            } catch (error) {
+                console.error('Error updating session:', error);
+                showToast('Error updating session: ' + error.message, 'error');
+            }
+        }
+
+        // DELETE Session
+        async function deleteSession(sessionId) {
+            if (!isFirebaseReady) {
+                return;
+            }
+
+            try {
+                await db.collection('sessions').doc(sessionId).delete();
+                showToast('Session deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting session:', error);
+                showToast('Error deleting session: ' + error.message, 'error');
+            }
+        }
+
+        // UPLOAD Image to Storage
+        async function uploadMemberPhoto(file, memberId) {
+            if (!isFirebaseReady) {
+                return null;
+            }
+
+            try {
+                const storageRef = storage.ref(`member-photos/${memberId}/${file.name}`);
+                await storageRef.put(file);
+                const url = await storageRef.getDownloadURL();
+                return url;
+            } catch (error) {
+                console.error('Error uploading photo:', error);
+                showToast('Error uploading photo: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        // ============ SYNC OPERATIONS ============
+
+        // Sync Local Data to Firebase
+        async function syncDataToFirebase(localMembers, localAttendance, localSessions) {
+            if (!isFirebaseReady) {
+                showToast('Firebase not connected', 'error');
+                return;
+            }
+
+            showToast('Syncing data to Firebase...');
+
+            try {
+                // Sync members
+                for (const member of localMembers) {
+                    await createOrUpdateMember(member);
+                }
+
+                // Sync sessions
+                for (const session of localSessions) {
+                    await saveSessionToFirebase(session);
+                }
+
+                // Sync attendance
+                for (const att of localAttendance) {
+                    await saveAttendanceToFirebase(att);
+                }
+
+                showToast('✓ All data synced to Firebase successfully!');
+            } catch (error) {
+                console.error('Sync error:', error);
+                showToast('Error during sync: ' + error.message, 'error');
+            }
+        }
+
+        // Load Data from Firebase
+        async function loadDataFromFirebase() {
+            if (!isFirebaseReady) {
+                showToast('Firebase not connected', 'error');
+                return null;
+            }
+
+            showToast('Loading data from Firebase...');
+
+            try {
+                const members = await getMembersFromFirebase();
+                const sessions = await getSessionsFromFirebase();
+                const attendance = await getAttendanceFromFirebase();
+
+                showToast('✓ Data loaded from Firebase!');
+                return { members, sessions, attendance };
+            } catch (error) {
+                console.error('Load error:', error);
+                showToast('Error loading data: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        // ============ UTILITIES ============
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast-message';
+            toast.style.background = type === 'error' ? '#dc3545' : '#28a745';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // ============ EVENT LISTENERS ============
+
+        // Save Firebase Config
+        document.getElementById('saveFirebaseConfigBtn').addEventListener('click', () => {
+            const configInput = document.getElementById('firebaseConfig').value;
+            try {
+                const config = JSON.parse(configInput);
+                localStorage.setItem('firebaseConfig', configInput);
+                initializeFirebase();
+                showToast('Firebase configuration saved!');
+                document.getElementById('firebaseConfig').value = '';
+            } catch (error) {
+                showToast('Invalid JSON format: ' + error.message, 'error');
+            }
+        });
+
+        // Sync to Firebase
+        document.getElementById('syncFirebaseBtn').addEventListener('click', async () => {
+            const members = JSON.parse(localStorage.getItem('cac_members')) || [];
+            const attendance = JSON.parse(localStorage.getItem('cac_attendance')) || [];
+            const sessions = JSON.parse(localStorage.getItem('cac_sessions')) || [];
+            await syncDataToFirebase(members, attendance, sessions);
+        });
+
+        // Load from Firebase
+        document.getElementById('loadFromFirebaseBtn').addEventListener('click', async () => {
+            const data = await loadDataFromFirebase();
+            if (data) {
+                localStorage.setItem('cac_members', JSON.stringify(data.members));
+                localStorage.setItem('cac_attendance', JSON.stringify(data.attendance));
+                localStorage.setItem('cac_sessions', JSON.stringify(data.sessions));
+                location.reload();
+            }
+        });
+
+        // Initialize Firebase on page load
+        initializeFirebase();
+
+        // ============ EXISTING LOCAL STORAGE CODE ============
         (function() {
-            // ============ DATA MANAGEMENT ============
+            // All your existing code here...
             let members = JSON.parse(localStorage.getItem('cac_members')) || [];
             let attendances = JSON.parse(localStorage.getItem('cac_attendance')) || [];
             let selectedDate = new Date().toISOString().split('T')[0];
@@ -993,1047 +1450,19 @@
             function saveAll() {
                 localStorage.setItem('cac_members', JSON.stringify(members));
                 localStorage.setItem('cac_attendance', JSON.stringify(attendances));
+                
+                // Sync to Firebase if ready
+                if (isFirebaseReady) {
+                    syncDataToFirebase(members, attendances, 
+                        JSON.parse(localStorage.getItem('cac_sessions')) || []);
+                }
+                
                 refreshAllViews();
                 updateMonthlyPreview();
             }
 
-            // Initialize sample data
-            if (members.length === 0) {
-                members = [
-                    { id: '1', fullName: 'Esther Oyedeji', phone: '0801234567', email: 'esther@ex.com', gender: 'Female', dateJoined: '2024-01-10', role: 'Leader', status: 'Active', photo: '' },
-                    { id: '2', fullName: 'David Akinola', phone: '0902345678', email: 'david@ex.com', gender: 'Male', dateJoined: '2024-02-15', role: 'Assistant Leader', status: 'Active', photo: '' },
-                    { id: '3', fullName: 'Ruth Caleb', phone: '0703344556', email: 'ruth@ex.com', gender: 'Female', dateJoined: '2024-03-01', role: 'Member', status: 'Active', photo: '' },
-                    { id: '4', fullName: 'Samuel Ige', phone: '0819988776', email: 'samuel@ex.com', gender: 'Male', dateJoined: '2024-04-20', role: 'Member', status: 'Active', photo: '' },
-                    { id: '5', fullName: 'Grace Oluwaseun', phone: '0705566778', email: 'grace@ex.com', gender: 'Female', dateJoined: '2024-05-10', role: 'Prayer Coordinator', status: 'Active', photo: '' },
-                    { id: '6', fullName: 'Michael Adebayo', phone: '0812233445', email: 'michael@ex.com', gender: 'Male', dateJoined: '2024-06-15', role: 'Vigil Coordinator', status: 'Active', photo: '' }
-                ];
-            }
-
-            if (attendances.length === 0) {
-                generateSampleAttendance();
-                saveAll();
-            }
-
-            function generateSampleAttendance() {
-                const today = new Date();
-                const reasons = ['Sick', 'Travel', 'Family', 'Work', 'Personal', 'Weather', 'Transport'];
-                const specialNames = ['Easter Retreat', 'Revival Service', 'Prayer Conference', 'Youth Program', 'Thanksgiving'];
-                const allActiveMembers = members.filter(m => m.status === 'Active');
-
-                for (let monthOffset = -3; monthOffset <= 0; monthOffset++) {
-                    const targetDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
-                    const year = targetDate.getFullYear(), month = targetDate.getMonth();
-                    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-                    // Regular sessions
-                    for (let day = 1; day <= daysInMonth; day++) {
-                        const date = new Date(year, month, day);
-                        const dayOfWeek = date.getDay();
-                        let sessionType = null;
-
-                        if (dayOfWeek === 0) sessionType = 'Sunday';
-                        else if (dayOfWeek === 3) sessionType = 'Wednesday';
-                        else if (dayOfWeek === 6) sessionType = 'Saturday';
-
-                        if (sessionType) {
-                            const dateStr = date.toISOString().split('T')[0];
-                            const selectedLeader = allActiveMembers[Math.floor(Math.random() * allActiveMembers.length)];
-                            
-                            members.forEach(member => {
-                                if (member.status === 'Active') {
-                                    let prob = 0.82;
-                                    if (member.id === '1') prob = 0.95;
-                                    if (member.id === '2') prob = 0.72;
-                                    const present = Math.random() < prob;
-                                    attendances.push({
-                                        memberId: member.id, date: dateStr, meetingType: sessionType,
-                                        present, timeIn: present ? '09:00' : '', timeOut: present ? '11:00' : '',
-                                        reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
-                                        programName: '', prayerLeaderId: selectedLeader ? selectedLeader.id : null
-                                    });
-                                }
-                            });
-                        }
-                    }
-
-                    // Monthly Vigil
-                    const lastDay = new Date(year, month + 1, 0);
-                    let vigilDate = new Date(lastDay);
-                    while (vigilDate.getDay() !== 5) { vigilDate.setDate(vigilDate.getDate() - 1); }
-                    const vigilDateStr = vigilDate.toISOString().split('T')[0];
-                    const vigilLeader = allActiveMembers[Math.floor(Math.random() * allActiveMembers.length)];
-                    
-                    members.forEach(member => {
-                        if (member.status === 'Active') {
-                            const present = Math.random() < 0.75;
-                            attendances.push({
-                                memberId: member.id, date: vigilDateStr, meetingType: 'Monthly Vigil',
-                                present, timeIn: present ? '22:00' : '', timeOut: present ? '04:00' : '',
-                                reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
-                                programName: 'Monthly Vigil', prayerLeaderId: vigilLeader ? vigilLeader.id : null
-                            });
-                        }
-                    });
-
-                    // Special Program
-                    const specialDay = Math.floor(Math.random() * 20) + 5;
-                    const specialDate = new Date(year, month, specialDay);
-                    const specialDateStr = specialDate.toISOString().split('T')[0];
-                    const specialName = specialNames[Math.floor(Math.random() * specialNames.length)];
-                    const specialLeader = allActiveMembers[Math.floor(Math.random() * allActiveMembers.length)];
-
-                    members.forEach(member => {
-                        if (member.status === 'Active') {
-                            const present = Math.random() < 0.85;
-                            attendances.push({
-                                memberId: member.id, date: specialDateStr, meetingType: 'Special Program',
-                                present, timeIn: present ? '10:00' : '', timeOut: present ? '14:00' : '',
-                                reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
-                                programName: specialName, prayerLeaderId: specialLeader ? specialLeader.id : null
-                            });
-                        }
-                    });
-                }
-            }
-
-            // ============ PDF GENERATION FUNCTIONS ============
-            function generateMembersPDF() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                doc.setFontSize(18);
-                doc.setTextColor(30, 47, 74);
-                doc.text('CAC Good Works - Prayer Unit', 14, 20);
-                doc.setFontSize(14);
-                doc.setTextColor(95, 107, 122);
-                doc.text('Members Directory', 14, 30);
-                
-                const activeMembers = members.filter(m => m.status === 'Active');
-                const leaderCounts = {};
-                attendances.forEach(a => {
-                    if (a.prayerLeaderId) leaderCounts[a.prayerLeaderId] = (leaderCounts[a.prayerLeaderId] || 0) + 1;
-                });
-
-                doc.autoTable({
-                    head: [['Name', 'Role', 'Phone', 'Email', 'Gender', 'Joined', 'Times Led']],
-                    body: activeMembers.map(m => [
-                        m.fullName, m.role, m.phone || '-', m.email || '-', m.gender, m.dateJoined,
-                        (leaderCounts[m.id] || 0).toString()
-                    ]),
-                    startY: 38,
-                    theme: 'striped',
-                    headStyles: { fillColor: [30, 47, 74] },
-                    styles: { fontSize: 8 }
-                });
-
-                doc.save(`CAC_Members_${new Date().toISOString().split('T')[0]}.pdf`);
-            }
-
-            function generateAttendancePDF() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                doc.setFontSize(16);
-                doc.setTextColor(30, 47, 74);
-                doc.text('CAC Prayer Unit - Attendance Sheet', 14, 20);
-                doc.setFontSize(12);
-                doc.setTextColor(95, 107, 122);
-                doc.text(`Date: ${selectedDate} | Session: ${selectedSessionType}`, 14, 30);
-                
-                if (currentPrayerLeader) {
-                    doc.setTextColor(133, 100, 4);
-                    doc.text(`Prayer Leader: ${currentPrayerLeader.fullName}`, 14, 38);
-                }
-
-                const activeMembers = members.filter(m => m.status === 'Active');
-                const rows = activeMembers.map(member => {
-                    const att = attendances.find(a => a.memberId === member.id && a.date === selectedDate && a.meetingType === selectedSessionType) || {};
-                    return [
-                        member.fullName, member.role,
-                        att.present ? 'Present' : 'Absent',
-                        att.timeIn || '-', att.timeOut || '-', att.reason || '-'
-                    ];
-                });
-
-                doc.autoTable({
-                    head: [['Name', 'Role', 'Status', 'Time In', 'Time Out', 'Reason']],
-                    body: rows,
-                    startY: currentPrayerLeader ? 44 : 36,
-                    theme: 'striped',
-                    headStyles: { fillColor: [29, 107, 94] },
-                    styles: { fontSize: 8 }
-                });
-
-                doc.save(`CAC_Attendance_${selectedDate}_${selectedSessionType.replace(/\s+/g, '_')}.pdf`);
-            }
-
-            function generateSessionsPDF() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('landscape');
-                
-                doc.setFontSize(16);
-                doc.setTextColor(30, 47, 74);
-                doc.text('CAC Prayer Unit - Sessions Report', 14, 18);
-                
-                const sessionKeys = [...new Set(attendances.map(a => `${a.date}|${a.meetingType}`))].sort();
-                const rows = sessionKeys.map(sessionKey => {
-                    const [date, type] = sessionKey.split('|');
-                    const dayAtt = attendances.filter(a => a.date === date && a.meetingType === type);
-                    const present = dayAtt.filter(a => a.present).length;
-                    const absent = dayAtt.filter(a => !a.present).length;
-                    const pct = dayAtt.length ? ((present / dayAtt.length) * 100).toFixed(1) : 0;
-                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
-                    
-                    return [date, type, leader ? leader.fullName : 'Not assigned', 
-                            present.toString(), absent.toString(), pct + '%',
-                            dayAtt[0]?.programName || '-'];
-                });
-
-                doc.autoTable({
-                    head: [['Date', 'Type', 'Prayer Leader', 'Present', 'Absent', '%', 'Program']],
-                    body: rows,
-                    startY: 25,
-                    theme: 'striped',
-                    headStyles: { fillColor: [44, 110, 99] },
-                    styles: { fontSize: 8 }
-                });
-
-                doc.save(`CAC_Sessions_${new Date().toISOString().split('T')[0]}.pdf`);
-            }
-
-            function generateMonthlyReportPDF() {
-                const month = parseInt(document.getElementById('reportMonth').value);
-                const year = parseInt(document.getElementById('reportYear').value);
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                                   'July', 'August', 'September', 'October', 'November', 'December'];
-                const monthName = monthNames[month];
-                
-                const first = new Date(year, month, 1).toISOString().split('T')[0];
-                const last = new Date(year, month + 1, 0).toISOString().split('T')[0];
-                const monthAtt = attendances.filter(a => a.date >= first && a.date <= last);
-                const sessionKeys = [...new Set(monthAtt.map(a => `${a.date}|${a.meetingType}`))].sort();
-
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('landscape');
-                
-                // Title
-                doc.setFontSize(20);
-                doc.setTextColor(30, 47, 74);
-                doc.text('CAC Good Works Prayer Unit', 14, 15);
-                doc.setFontSize(16);
-                doc.setTextColor(100, 100, 100);
-                doc.text(`Monthly Attendance Report - ${monthName} ${year}`, 14, 25);
-                
-                // Summary stats
-                doc.setFontSize(10);
-                doc.text(`Total Sessions: ${sessionKeys.length} | Sundays: ${sessionKeys.filter(k => k.includes('Sunday')).length} | Wednesdays: ${sessionKeys.filter(k => k.includes('Wednesday')).length} | Saturdays: ${sessionKeys.filter(k => k.includes('Saturday')).length} | Vigils: ${sessionKeys.filter(k => k.includes('Monthly Vigil')).length} | Special: ${sessionKeys.filter(k => k.includes('Special Program')).length}`, 14, 33);
-
-                // Session details table
-                const sessionRows = sessionKeys.map(sessionKey => {
-                    const [date, type] = sessionKey.split('|');
-                    const dayAtt = monthAtt.filter(a => a.date === date && a.meetingType === type);
-                    const present = dayAtt.filter(a => a.present).length;
-                    const absent = dayAtt.filter(a => !a.present).length;
-                    const pct = dayAtt.length ? ((present / dayAtt.length) * 100).toFixed(1) : 0;
-                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
-                    const absentees = dayAtt.filter(a => !a.present).map(a => {
-                        const mem = members.find(m => m.id === a.memberId);
-                        return mem ? `${mem.fullName} (${a.reason || 'No reason'})` : '';
-                    }).join('; ');
-                    
-                    return [date, type, leader ? leader.fullName : '-', present.toString(), absent.toString(), pct + '%', absentees || 'None'];
-                });
-
-                doc.autoTable({
-                    head: [['Date', 'Type', 'Leader', 'Present', 'Absent', '%', 'Absentees & Reasons']],
-                    body: sessionRows,
-                    startY: 38,
-                    theme: 'striped',
-                    headStyles: { fillColor: [29, 107, 94] },
-                    styles: { fontSize: 7, cellPadding: 2 },
-                    columnStyles: { 6: { cellWidth: 80 } }
-                });
-
-                // Member summary table
-                const finalY = doc.lastAutoTable.finalY + 8;
-                doc.setFontSize(12);
-                doc.text('Member Attendance Summary:', 14, finalY);
-                
-                const memberRows = members.filter(m => m.status === 'Active').map(member => {
-                    const memAtt = monthAtt.filter(a => a.memberId === member.id);
-                    if (memAtt.length === 0) return null;
-                    const present = memAtt.filter(a => a.present).length;
-                    const absent = memAtt.filter(a => !a.present).length;
-                    const pct = ((present / memAtt.length) * 100).toFixed(1);
-                    const timesLed = monthAtt.filter(a => a.prayerLeaderId === member.id).length;
-                    const absenceReasons = memAtt.filter(a => !a.present && a.reason).map(a => 
-                        `${a.date.split('-')[2]}/${a.date.split('-')[1]}: ${a.reason}`
-                    ).join('; ');
-                    
-                    return [member.fullName, member.role, memAtt.length.toString(), present.toString(), 
-                            absent.toString(), pct + '%', timesLed.toString(), absenceReasons || 'None'];
-                }).filter(row => row !== null);
-
-                doc.autoTable({
-                    head: [['Name', 'Role', 'Sessions', 'Present', 'Absent', '%', 'Times Led', 'Absence Reasons']],
-                    body: memberRows,
-                    startY: finalY + 5,
-                    theme: 'striped',
-                    headStyles: { fillColor: [30, 47, 74] },
-                    styles: { fontSize: 7, cellPadding: 2 },
-                    columnStyles: { 7: { cellWidth: 60 } }
-                });
-
-                doc.save(`CAC_Monthly_Report_${monthName}_${year}.pdf`);
-            }
-
-            function generateFullReportPDF() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('landscape');
-                
-                // Title page
-                doc.setFontSize(24);
-                doc.setTextColor(30, 47, 74);
-                doc.text('CAC Good Works', 14, 30);
-                doc.setFontSize(20);
-                doc.text('Prayer Unit - Comprehensive Report', 14, 42);
-                doc.setFontSize(12);
-                doc.setTextColor(100, 100, 100);
-                doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 14, 54);
-                
-                // Overview stats
-                const totalSessions = [...new Set(attendances.map(a => a.date))].length;
-                const activeMembers = members.filter(m => m.status === 'Active');
-                const activeAtt = attendances.filter(a => activeMembers.find(m => m.id === a.memberId));
-                const avgPct = activeAtt.length ? ((activeAtt.filter(a => a.present).length / activeAtt.length) * 100).toFixed(1) : 0;
-                const leaderAssignments = attendances.filter(a => a.prayerLeaderId).length;
-
-                doc.setFontSize(11);
-                doc.text(`Active Members: ${activeMembers.length}`, 14, 65);
-                doc.text(`Total Sessions Recorded: ${totalSessions}`, 14, 72);
-                doc.text(`Overall Attendance Rate: ${avgPct}%`, 14, 79);
-                doc.text(`Total Prayer Leader Assignments: ${leaderAssignments}`, 14, 86);
-
-                // Session type breakdown
-                doc.setFontSize(14);
-                doc.text('Session Type Breakdown', 14, 100);
-                const allDates = [...new Set(attendances.map(a => a.date))];
-                const typeStats = [
-                    ['Sunday Services', allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Sunday')).length],
-                    ['Wednesday Meetings', allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Wednesday')).length],
-                    ['Saturday Gatherings', allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Saturday')).length],
-                    ['Monthly Vigils', allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Monthly Vigil')).length],
-                    ['Special Programs', allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Special Program')).length]
-                ];
-                
-                doc.autoTable({
-                    head: [['Session Type', 'Count']],
-                    body: typeStats,
-                    startY: 105,
-                    theme: 'striped',
-                    headStyles: { fillColor: [29, 107, 94] },
-                    styles: { fontSize: 10 }
-                });
-
-                // Member summary
-                const memberY = doc.lastAutoTable.finalY + 10;
-                doc.setFontSize(14);
-                doc.text('Member Attendance Summary', 14, memberY);
-                
-                const leaderCounts = {};
-                attendances.forEach(a => {
-                    if (a.prayerLeaderId) leaderCounts[a.prayerLeaderId] = (leaderCounts[a.prayerLeaderId] || 0) + 1;
-                });
-
-                const memberRows = activeMembers.map(m => {
-                    const memAtt = attendances.filter(a => a.memberId === m.id);
-                    const present = memAtt.filter(a => a.present).length;
-                    return [
-                        m.fullName, m.role, memAtt.length.toString(), present.toString(),
-                        (memAtt.length - present).toString(),
-                        memAtt.length ? ((present / memAtt.length) * 100).toFixed(1) + '%' : '0%',
-                        (leaderCounts[m.id] || 0).toString()
-                    ];
-                });
-
-                doc.autoTable({
-                    head: [['Name', 'Role', 'Total Sessions', 'Present', 'Absent', 'Rate', 'Times Led']],
-                    body: memberRows,
-                    startY: memberY + 5,
-                    theme: 'striped',
-                    headStyles: { fillColor: [30, 47, 74] },
-                    styles: { fontSize: 8 }
-                });
-
-                doc.addPage();
-                
-                // Recent sessions
-                doc.setFontSize(14);
-                doc.text('Recent Sessions', 14, 20);
-                const recentSessions = [...new Set(attendances.map(a => `${a.date}|${a.meetingType}`))].sort().reverse().slice(0, 30);
-                const recentRows = recentSessions.map(sk => {
-                    const [date, type] = sk.split('|');
-                    const dayAtt = attendances.filter(a => a.date === date && a.meetingType === type);
-                    const present = dayAtt.filter(a => a.present).length;
-                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
-                    return [date, type, leader ? leader.fullName : '-', present.toString(), 
-                            (dayAtt.length - present).toString(), 
-                            ((present / dayAtt.length) * 100).toFixed(1) + '%'];
-                });
-
-                doc.autoTable({
-                    head: [['Date', 'Type', 'Leader', 'Present', 'Absent', '%']],
-                    body: recentRows,
-                    startY: 25,
-                    theme: 'striped',
-                    headStyles: { fillColor: [44, 110, 99] },
-                    styles: { fontSize: 8 }
-                });
-
-                doc.save(`CAC_Full_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-            }
-
-            function generateSessionsListPDF() {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('landscape');
-                
-                doc.setFontSize(18);
-                doc.setTextColor(30, 47, 74);
-                doc.text('CAC Prayer Unit - Sessions List', 14, 20);
-                
-                const filterType = document.getElementById('filterSessionType').value;
-                const sessionKeys = [...new Set(attendances.map(a => `${a.date}|${a.meetingType}`))].sort().reverse();
-                const filteredSessions = filterType === 'all' ? sessionKeys : sessionKeys.filter(k => k.includes(filterType));
-                
-                const rows = filteredSessions.slice(0, 50).map(sessionKey => {
-                    const [date, type] = sessionKey.split('|');
-                    const dayAtt = attendances.filter(a => a.date === date && a.meetingType === type);
-                    const present = dayAtt.filter(a => a.present).length;
-                    const absent = dayAtt.filter(a => !a.present).length;
-                    const pct = dayAtt.length ? ((present / dayAtt.length) * 100).toFixed(1) : 0;
-                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
-                    
-                    return [date, type, leader ? leader.fullName : 'Not assigned', 
-                            present.toString(), absent.toString(), pct + '%',
-                            dayAtt[0]?.programName || '-'];
-                });
-
-                doc.autoTable({
-                    head: [['Date', 'Type', 'Prayer Leader', 'Present', 'Absent', '%', 'Program']],
-                    body: rows,
-                    startY: 28,
-                    theme: 'striped',
-                    headStyles: { fillColor: [44, 110, 99] },
-                    styles: { fontSize: 8 }
-                });
-
-                doc.save(`CAC_Sessions_List_${new Date().toISOString().split('T')[0]}.pdf`);
-            }
-
-            // ============ HELPER FUNCTIONS ============
-            function getSessionBadgeClass(type) {
-                switch (type) {
-                    case 'Sunday': return 'session-sunday';
-                    case 'Wednesday': return 'session-wednesday';
-                    case 'Saturday': return 'session-saturday';
-                    case 'Monthly Vigil': return 'session-vigil';
-                    case 'Special Program': return 'session-special';
-                    default: return 'badge-info';
-                }
-            }
-
-            function getSessionIcon(type) {
-                switch (type) {
-                    case 'Sunday': return '☀️';
-                    case 'Wednesday': return '📖';
-                    case 'Saturday': return '🙏';
-                    case 'Monthly Vigil': return '🌙';
-                    case 'Special Program': return '⭐';
-                    default: return '📅';
-                }
-            }
-
-            function getActiveMembers() {
-                return members.filter(m => m.status === 'Active');
-            }
-
-            function refreshAllViews() {
-                updateDashboardNumbers();
-                renderMemberList();
-                renderAttendanceChecklist();
-                renderSessionsTable();
-                renderRecentAbsentees();
-                renderMonthlyChart();
-                updateMonthlyPreview();
-                updateSessionStats();
-                updatePrayerLeaderSelects();
-                loadCurrentPrayerLeader();
-                document.getElementById('attendanceDate').value = selectedDate;
-                document.getElementById('selectedDateLabel').innerHTML =
-                    `<strong>${selectedDate}</strong> · ${selectedSessionType} ${getSessionIcon(selectedSessionType)}`;
-            }
-
-            function updateDashboardNumbers() {
-                document.getElementById('totalMembersDisplay').innerText = getActiveMembers().length;
-                document.getElementById('totalSessionsDisplay').innerText = [...new Set(attendances.map(a => a.date))].length;
-                const activeAtt = attendances.filter(a => getActiveMembers().find(m => m.id === a.memberId));
-                const avg = activeAtt.length ? ((activeAtt.filter(a => a.present).length / activeAtt.length) * 100).toFixed(1) : 0;
-                document.getElementById('avgAttendanceDisplay').innerText = avg + '%';
-                document.getElementById('prayerLeadersCount').innerText = attendances.filter(a => a.prayerLeaderId).length;
-            }
-
-            function updatePrayerLeaderSelects() {
-                const activeMembers = getActiveMembers();
-                const options = activeMembers.map(m => `<option value="${m.id}">${m.fullName} - ${m.role}</option>`).join('');
-                document.getElementById('prayerLeaderSelect').innerHTML = '<option value="">-- Select any active member --</option>' + options;
-                document.getElementById('sessionPrayerLeader').innerHTML = '<option value="">-- Select any active member --</option>' + options;
-            }
-
-            function loadCurrentPrayerLeader() {
-                const sessionAttendances = attendances.filter(a => a.date === selectedDate && a.meetingType === selectedSessionType);
-                const leaderId = sessionAttendances[0]?.prayerLeaderId;
-                if (leaderId) {
-                    const leader = members.find(m => m.id === leaderId);
-                    if (leader && leader.status === 'Active') {
-                        currentPrayerLeader = leader;
-                        document.getElementById('currentLeaderDisplay').innerHTML = 
-                            `<span class="badge badge-leader">👑 ${leader.fullName} - ${leader.role}</span>`;
-                        document.getElementById('prayerLeaderSelect').value = leaderId;
-                    } else {
-                        currentPrayerLeader = null;
-                        document.getElementById('currentLeaderDisplay').innerHTML = '<span style="color: #999;">Previously assigned leader is no longer active</span>';
-                        document.getElementById('prayerLeaderSelect').value = '';
-                    }
-                } else {
-                    currentPrayerLeader = null;
-                    document.getElementById('currentLeaderDisplay').innerHTML = '<span style="color: #999;">No prayer leader assigned yet</span>';
-                    document.getElementById('prayerLeaderSelect').value = '';
-                }
-            }
-
-            function renderMemberList(filter = 'active') {
-                const container = document.getElementById('memberListContainer');
-                let filteredMembers = filter === 'active' ? getActiveMembers() : members;
-                const leaderCounts = {};
-                attendances.forEach(a => {
-                    if (a.prayerLeaderId) leaderCounts[a.prayerLeaderId] = (leaderCounts[a.prayerLeaderId] || 0) + 1;
-                });
-
-                container.innerHTML = filteredMembers.map(member => `
-                    <div class="member-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div class="member-avatar" style="${member.photo ? `background-image:url('${member.photo}')` : ''}">
-                                    ${!member.photo ? member.fullName.charAt(0).toUpperCase() : ''}
-                                </div>
-                                <div>
-                                    <div style="font-weight: 600;">${member.fullName}</div>
-                                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                                        ${member.role} · ${member.phone || 'No phone'} 
-                                        ${leaderCounts[member.id] ? `· 👑 Led ${leaderCounts[member.id]}x` : ''}
-                                    </div>
-                                </div>
-                            </div>
-                            <div style="display: flex; gap: 6px;">
-                                <span class="badge ${member.status === 'Active' ? 'badge-present' : 'badge-absent'}">${member.status}</span>
-                                <button class="btn btn-sm btn-outline edit-member-btn" data-memberid="${member.id}"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-sm btn-danger delete-member-btn" data-memberid="${member.id}"><i class="fas fa-trash-alt"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                `).join('') || '<p style="text-align: center; padding: 2rem;">No members found</p>';
-
-                document.querySelectorAll('.edit-member-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const member = members.find(m => m.id === btn.dataset.memberid);
-                        if (member) openEditModal(member);
-                    });
-                });
-                document.querySelectorAll('.delete-member-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        if (confirm('Delete this member?')) {
-                            members = members.filter(m => m.id !== btn.dataset.memberid);
-                            attendances = attendances.filter(a => a.memberId !== btn.dataset.memberid);
-                            saveAll();
-                        }
-                    });
-                });
-            }
-
-            function renderAttendanceChecklist(filterTerm = '') {
-                const container = document.getElementById('attendanceChecklist');
-                const activeMembers = getActiveMembers().filter(m => 
-                    filterTerm === '' || m.fullName.toLowerCase().includes(filterTerm.toLowerCase())
-                );
-
-                container.innerHTML = activeMembers.map(member => {
-                    const att = attendances.find(a => a.memberId === member.id && a.date === selectedDate && a.meetingType === selectedSessionType) || {
-                        present: false, timeIn: '', timeOut: '', reason: ''
-                    };
-                    const isCurrentLeader = currentPrayerLeader && currentPrayerLeader.id === member.id;
-                    
-                    return `
-                        <div class="checklist-item ${isCurrentLeader ? 'prayer-leader' : ''}">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <input type="checkbox" class="custom-checkbox att-present-check" data-member="${member.id}" ${att.present ? 'checked' : ''}>
-                                ${isCurrentLeader ? '<span title="Current Prayer Leader">👑</span>' : ''}
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                <div class="member-avatar" style="width: 40px; height: 40px; ${member.photo ? `background-image:url('${member.photo}')` : ''}">
-                                    ${!member.photo ? member.fullName.charAt(0).toUpperCase() : ''}
-                                </div>
-                                <div>
-                                    <span style="font-weight: 500;">${member.fullName}</span>
-                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">${member.role}</div>
-                                </div>
-                            </div>
-                            <button class="btn btn-sm ${isCurrentLeader ? 'btn-gold' : 'btn-leader'} set-leader-btn" data-memberid="${member.id}">
-                                <i class="fas fa-crown"></i> ${isCurrentLeader ? 'Leading' : 'Set as Leader'}
-                            </button>
-                            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                                <input type="time" class="input-field att-time-in" data-member="${member.id}" value="${att.timeIn || ''}" style="width: 120px;" placeholder="Time in">
-                                <input type="time" class="input-field att-time-out" data-member="${member.id}" value="${att.timeOut || ''}" style="width: 120px;" placeholder="Time out">
-                                <input type="text" class="input-field att-reason" data-member="${member.id}" value="${att.reason || ''}" style="width: 150px;" placeholder="Reason if absent">
-                            </div>
-                        </div>
-                    `;
-                }).join('') || '<p style="text-align: center; padding: 2rem;">No active members</p>';
-
-                document.querySelectorAll('.set-leader-btn').forEach(btn => {
-                    btn.addEventListener('click', () => setPrayerLeader(btn.dataset.memberid));
-                });
-            }
-
-            function setPrayerLeader(memberId) {
-                const member = members.find(m => m.id === memberId);
-                if (member && member.status === 'Active') {
-                    currentPrayerLeader = member;
-                    document.getElementById('prayerLeaderSelect').value = memberId;
-                    document.getElementById('currentLeaderDisplay').innerHTML = 
-                        `<span class="badge badge-leader">👑 ${member.fullName} - ${member.role}</span>`;
-                    renderAttendanceChecklist(document.getElementById('searchAttendance').value);
-                }
-            }
-
-            function renderSessionsTable(filterType = 'all') {
-                const tbody = document.getElementById('sessionsTableBody');
-                const sessionKeys = [...new Set(attendances.map(a => `${a.date}|${a.meetingType}`))].sort().reverse();
-                const filteredSessions = filterType === 'all' ? sessionKeys : sessionKeys.filter(k => k.includes(filterType));
-
-                tbody.innerHTML = filteredSessions.slice(0, 30).map(sessionKey => {
-                    const [date, type] = sessionKey.split('|');
-                    const dayAtt = attendances.filter(a => a.date === date && a.meetingType === type);
-                    const present = dayAtt.filter(a => a.present).length;
-                    const absent = dayAtt.filter(a => !a.present).length;
-                    const pct = dayAtt.length ? ((present / dayAtt.length) * 100).toFixed(1) : 0;
-                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
-                    
-                    return `
-                        <tr>
-                            <td>${date}</td>
-                            <td><span class="session-badge ${getSessionBadgeClass(type)}">${getSessionIcon(type)} ${type}</span></td>
-                            <td>${leader ? `👑 ${leader.fullName}` : '<span style="color: #999;">Not assigned</span>'}</td>
-                            <td>${dayAtt[0]?.programName || '-'}</td>
-                            <td>${present}</td>
-                            <td>${absent}</td>
-                            <td><div style="display: flex; align-items: center; gap: 8px;"><div style="flex: 1; height: 6px; background: #e8e5df; border-radius: 3px;"><div style="width: ${pct}%; height: 100%; background: var(--accent-emerald); border-radius: 3px;"></div></div><span>${pct}%</span></div></td>
-                            <td>
-                                <button class="btn btn-sm btn-outline view-session-btn" data-date="${date}" data-type="${type}"><i class="fas fa-eye"></i></button>
-                                <button class="btn btn-sm btn-danger delete-session-btn" data-date="${date}" data-type="${type}"><i class="fas fa-trash-alt"></i></button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('') || '<tr><td colspan="8">No sessions recorded</td></tr>';
-
-                document.querySelectorAll('.view-session-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        selectedDate = btn.dataset.date;
-                        selectedSessionType = btn.dataset.type;
-                        document.getElementById('attendanceDate').value = selectedDate;
-                        document.getElementById('sessionTypeSelect').value = selectedSessionType;
-                        switchTab('attendance-tab');
-                    });
-                });
-                document.querySelectorAll('.delete-session-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        if (confirm(`Delete session?`)) {
-                            attendances = attendances.filter(a => !(a.date === btn.dataset.date && a.meetingType === btn.dataset.type));
-                            saveAll();
-                        }
-                    });
-                });
-            }
-
-            function renderRecentAbsentees() {
-                const tbody = document.querySelector('#recentAbsentTable tbody');
-                const recent = attendances.filter(a => !a.present).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
-                tbody.innerHTML = recent.map(r => {
-                    const member = members.find(m => m.id === r.memberId) || { fullName: 'Unknown' };
-                    const leader = r.prayerLeaderId ? members.find(m => m.id === r.prayerLeaderId) : null;
-                    return `<tr><td>${member.fullName}</td><td>${r.date}</td><td><span class="session-badge ${getSessionBadgeClass(r.meetingType)}">${r.meetingType}</span></td><td>${leader ? `👑 ${leader.fullName}` : '-'}</td><td><span class="badge badge-absent">${r.reason || 'Not specified'}</span></td></tr>`;
-                }).join('') || '<tr><td colspan="5">No recent absentees</td></tr>';
-            }
-
-            function renderMonthlyChart() {
-                const ctx = document.getElementById('monthlyChart').getContext('2d');
-                if (window.myChart) window.myChart.destroy();
-                const weeks = ['3 weeks ago', '2 weeks ago', 'Last week', 'This week'];
-                const data = [0, 0, 0, 0];
-                const today = new Date();
-                for (let i = 0; i < 4; i++) {
-                    const start = new Date(today); start.setDate(today.getDate() - (21 - i * 7));
-                    const end = new Date(start); end.setDate(start.getDate() + 6);
-                    const weekAtt = attendances.filter(a => { const d = new Date(a.date); return d >= start && d <= end; });
-                    if (weekAtt.length) data[i] = Math.round((weekAtt.filter(a => a.present).length / weekAtt.length) * 100);
-                }
-                window.myChart = new Chart(ctx, {
-                    type: 'line', data: { labels: weeks, datasets: [{ data, borderColor: '#1d6b5e', backgroundColor: 'rgba(29,107,94,0.08)', tension: 0.4, fill: true, borderWidth: 2, pointBackgroundColor: '#1d6b5e' }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 }, x: { grid: { display: false } } } }
-                });
-            }
-
-            function updateSessionStats() {
-                const allDates = [...new Set(attendances.map(a => a.date))];
-                document.getElementById('sundayCount').innerText = allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Sunday')).length;
-                document.getElementById('wednesdayCount').innerText = allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Wednesday')).length;
-                document.getElementById('saturdayCount').innerText = allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Saturday')).length;
-                document.getElementById('vigilCount').innerText = allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Monthly Vigil')).length;
-                document.getElementById('specialCount').innerText = allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Special Program')).length;
-
-                const activeMembers = getActiveMembers();
-                document.getElementById('prayerLeaderStats').innerHTML = activeMembers.map(member => {
-                    const timesLed = attendances.filter(a => a.prayerLeaderId === member.id).length;
-                    return `<div style="display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid #f0ede6;"><span>${member.fullName} (${member.role})</span><span><strong>${timesLed}</strong> session${timesLed !== 1 ? 's' : ''} led</span></div>`;
-                }).join('') || '<p>No leadership assignments yet</p>';
-            }
-
-            function updateMonthlyPreview() {
-                const month = parseInt(document.getElementById('reportMonth').value);
-                const year = parseInt(document.getElementById('reportYear').value);
-                const first = new Date(year, month, 1).toISOString().split('T')[0];
-                const last = new Date(year, month + 1, 0).toISOString().split('T')[0];
-                const monthAtt = attendances.filter(a => a.date >= first && a.date <= last);
-                const sessionKeys = [...new Set(monthAtt.map(a => `${a.date}|${a.meetingType}`))].sort();
-
-                document.getElementById('totalSessionsMonth').innerText = sessionKeys.length;
-                document.getElementById('sundaySessions').innerText = sessionKeys.filter(k => k.includes('Sunday')).length;
-                document.getElementById('wednesdaySessions').innerText = sessionKeys.filter(k => k.includes('Wednesday')).length;
-                document.getElementById('saturdaySessions').innerText = sessionKeys.filter(k => k.includes('Saturday')).length;
-                document.getElementById('vigilSessions').innerText = sessionKeys.filter(k => k.includes('Monthly Vigil')).length;
-                document.getElementById('specialSessions').innerText = sessionKeys.filter(k => k.includes('Special Program')).length;
-
-                document.getElementById('sessionDetailBody').innerHTML = sessionKeys.map(sk => {
-                    const [date, type] = sk.split('|');
-                    const dayAtt = monthAtt.filter(a => a.date === date && a.meetingType === type);
-                    const present = dayAtt.filter(a => a.present).length;
-                    const total = dayAtt.length;
-                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
-                    return `<tr><td>${date}</td><td><span class="session-badge ${getSessionBadgeClass(type)}">${type}</span></td><td>${leader ? `👑 ${leader.fullName}` : '-'}</td><td>${present}</td><td>${total - present}</td><td>${total ? ((present/total)*100).toFixed(1) : 0}%</td></tr>`;
-                }).join('') || '<tr><td colspan="6">No sessions</td></tr>';
-
-                document.getElementById('memberSummaryBody').innerHTML = getActiveMembers().map(member => {
-                    const memAtt = monthAtt.filter(a => a.memberId === member.id);
-                    if (memAtt.length) {
-                        const present = memAtt.filter(a => a.present).length;
-                        const timesLed = monthAtt.filter(a => a.prayerLeaderId === member.id).length;
-                        return `<tr><td>${member.fullName}</td><td>${present}</td><td>${memAtt.length - present}</td><td>${((present/memAtt.length)*100).toFixed(1)}%</td><td>${timesLed}</td></tr>`;
-                    }
-                    return '';
-                }).join('') || '<tr><td colspan="5">No data</td></tr>';
-            }
-
-            function switchTab(tabId) {
-                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-                document.getElementById(tabId).classList.add('active');
-                currentTab = tabId;
-                switch (tabId) {
-                    case 'members-tab': renderMemberList(); break;
-                    case 'attendance-tab': loadCurrentPrayerLeader(); renderAttendanceChecklist(); break;
-                    case 'sessions-tab': renderSessionsTable(); updateSessionStats(); break;
-                    case 'reports-tab': updateMonthlyPreview(); renderMonthlyChart(); renderRecentAbsentees(); break;
-                }
-            }
-
-            function openEditModal(member) {
-                document.getElementById('editMemberId').value = member.id;
-                document.getElementById('editFullName').value = member.fullName || '';
-                document.getElementById('editPhone').value = member.phone || '';
-                document.getElementById('editEmail').value = member.email || '';
-                document.getElementById('editGender').value = member.gender || 'Male';
-                document.getElementById('editDateJoined').value = member.dateJoined || '';
-                document.getElementById('editRole').value = member.role || 'Member';
-                document.getElementById('editStatus').checked = member.status === 'Active';
-                document.getElementById('editModal').style.display = 'flex';
-            }
-
-            // ============ EVENT LISTENERS ============
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-
-            // PDF Download Buttons
-            document.getElementById('headerPdfBtn').addEventListener('click', generateFullReportPDF);
-            document.getElementById('downloadMembersPdfBtn').addEventListener('click', generateMembersPDF);
-            document.getElementById('downloadAttendancePdfBtn').addEventListener('click', generateAttendancePDF);
-            document.getElementById('downloadSessionsPdfBtn').addEventListener('click', generateSessionsPDF);
-            document.getElementById('downloadSessionsListPdfBtn').addEventListener('click', generateSessionsListPDF);
-            document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', generateMonthlyReportPDF);
-            document.getElementById('downloadFullReportPdfBtn').addEventListener('click', generateFullReportPDF);
-
-            // Session type selector
-            document.getElementById('sessionTypeSelect').addEventListener('change', function(e) {
-                selectedSessionType = e.target.value;
-                document.getElementById('selectedDateLabel').innerHTML = `<strong>${selectedDate}</strong> · ${selectedSessionType} ${getSessionIcon(selectedSessionType)}`;
-                loadCurrentPrayerLeader();
-                renderAttendanceChecklist();
-            });
-
-            // Prayer leader assignment
-            document.getElementById('assignPrayerLeaderBtn').addEventListener('click', () => {
-                const leaderId = document.getElementById('prayerLeaderSelect').value;
-                if (leaderId) setPrayerLeader(leaderId);
-                else alert('Please select a member to lead this prayer session');
-            });
-
-            document.getElementById('clearPrayerLeaderBtn').addEventListener('click', () => {
-                currentPrayerLeader = null;
-                document.getElementById('prayerLeaderSelect').value = '';
-                document.getElementById('currentLeaderDisplay').innerHTML = '<span style="color: #999;">No prayer leader assigned</span>';
-                renderAttendanceChecklist(document.getElementById('searchAttendance').value);
-            });
-
-            // Add session form
-            document.getElementById('addSessionForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const sessionDate = document.getElementById('sessionDate').value;
-                const sessionType = document.getElementById('sessionType').value;
-                if (!sessionDate || !sessionType) { alert('Please fill in all required fields'); return; }
-
-                getActiveMembers().forEach(member => {
-                    const exists = attendances.some(a => a.memberId === member.id && a.date === sessionDate && a.meetingType === sessionType);
-                    if (!exists) {
-                        attendances.push({
-                            memberId: member.id, date: sessionDate, meetingType: sessionType,
-                            present: false, timeIn: document.getElementById('sessionStartTime').value,
-                            timeOut: document.getElementById('sessionEndTime').value, reason: '',
-                            programName: document.getElementById('specialProgramName').value,
-                            prayerLeaderId: document.getElementById('sessionPrayerLeader').value || null
-                        });
-                    }
-                });
-                saveAll();
-                alert('Session created successfully!');
-                e.target.reset();
-                switchTab('sessions-tab');
-            });
-
-            // Session filter
-            document.getElementById('filterSessionType').addEventListener('change', function(e) { renderSessionsTable(e.target.value); });
-            document.getElementById('refreshSessionsBtn').addEventListener('click', () => {
-                renderSessionsTable(document.getElementById('filterSessionType').value);
-                updateSessionStats();
-            });
-
-            // Add member form
-            document.getElementById('addMemberForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const fullName = document.getElementById('fullName').value.trim();
-                if (!fullName) return;
-
-                const photoFile = document.getElementById('profilePhoto').files[0];
-                const addMember = (photo) => {
-                    members.push({
-                        id: Date.now() + '', fullName, phone: document.getElementById('phone').value,
-                        email: document.getElementById('email').value, gender: document.getElementById('gender').value || 'Male',
-                        dateJoined: document.getElementById('dateJoined').value, role: document.getElementById('role').value,
-                        status: document.getElementById('status').checked ? 'Active' : 'Inactive', photo
-                    });
-                    saveAll();
-                    switchTab('members-tab');
-                };
-
-                if (photoFile) { const r = new FileReader(); r.onload = ev => addMember(ev.target.result); r.readAsDataURL(photoFile); }
-                else addMember('');
-                e.target.reset();
-                document.getElementById('photoPreview').innerHTML = '<i class="fas fa-user"></i>';
-                document.getElementById('photoPreview').style.backgroundImage = '';
-                document.getElementById('status').checked = true;
-            });
-
-            document.getElementById('profilePhoto').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const r = new FileReader();
-                    r.onload = ev => { document.getElementById('photoPreview').style.backgroundImage = `url('${ev.target.result}')`; document.getElementById('photoPreview').innerHTML = ''; };
-                    r.readAsDataURL(file);
-                }
-            });
-
-            document.getElementById('clearMemberForm').addEventListener('click', () => {
-                document.getElementById('addMemberForm').reset();
-                document.getElementById('photoPreview').innerHTML = '<i class="fas fa-user"></i>';
-                document.getElementById('photoPreview').style.backgroundImage = '';
-            });
-
-            document.getElementById('filterActiveBtn').addEventListener('click', () => renderMemberList('active'));
-            document.getElementById('filterAllBtn').addEventListener('click', () => renderMemberList('all'));
-
-            document.getElementById('searchMembers').addEventListener('input', function(e) {
-                const term = e.target.value.toLowerCase();
-                const container = document.getElementById('memberListContainer');
-                const filtered = members.filter(m => m.fullName.toLowerCase().includes(term));
-                const leaderCounts = {};
-                attendances.forEach(a => { if (a.prayerLeaderId) leaderCounts[a.prayerLeaderId] = (leaderCounts[a.prayerLeaderId] || 0) + 1; });
-                container.innerHTML = filtered.map(member => `
-                    <div class="member-card"><div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <div class="member-avatar">${member.fullName.charAt(0)}</div>
-                            <div><div style="font-weight: 600;">${member.fullName}</div><div style="font-size: 0.85rem;">${member.role} ${leaderCounts[member.id] ? `· Led ${leaderCounts[member.id]}x` : ''}</div></div>
-                        </div>
-                        <button class="btn btn-sm btn-outline edit-member-btn" data-memberid="${member.id}"><i class="fas fa-edit"></i></button>
-                    </div></div>
-                `).join('') || '<p>No matching members</p>';
-                document.querySelectorAll('.edit-member-btn').forEach(btn => {
-                    btn.addEventListener('click', () => { const m = members.find(mx => mx.id === btn.dataset.memberid); if (m) openEditModal(m); });
-                });
-            });
-
-            // Attendance date navigation
-            document.getElementById('attendanceDate').addEventListener('change', function(e) {
-                selectedDate = e.target.value;
-                loadCurrentPrayerLeader();
-                renderAttendanceChecklist();
-            });
-            document.getElementById('prevDateBtn').addEventListener('click', () => {
-                const d = new Date(selectedDate); d.setDate(d.getDate() - 1);
-                selectedDate = d.toISOString().split('T')[0];
-                document.getElementById('attendanceDate').value = selectedDate;
-                loadCurrentPrayerLeader(); renderAttendanceChecklist();
-            });
-            document.getElementById('nextDateBtn').addEventListener('click', () => {
-                const d = new Date(selectedDate); d.setDate(d.getDate() + 1);
-                selectedDate = d.toISOString().split('T')[0];
-                document.getElementById('attendanceDate').value = selectedDate;
-                loadCurrentPrayerLeader(); renderAttendanceChecklist();
-            });
-            document.getElementById('todayDateBtn').addEventListener('click', () => {
-                selectedDate = new Date().toISOString().split('T')[0];
-                document.getElementById('attendanceDate').value = selectedDate;
-                loadCurrentPrayerLeader(); renderAttendanceChecklist();
-            });
-
-            document.getElementById('markAllPresent').addEventListener('click', () => {
-                document.querySelectorAll('.att-present-check').forEach(cb => cb.checked = true);
-            });
-            document.getElementById('clearAllAttendance').addEventListener('click', () => {
-                document.querySelectorAll('.att-present-check').forEach(cb => cb.checked = false);
-                document.querySelectorAll('.att-time-in, .att-time-out, .att-reason').forEach(input => input.value = '');
-            });
-            document.getElementById('searchAttendance').addEventListener('input', function(e) { renderAttendanceChecklist(e.target.value); });
-
-            // Save attendance
-            document.getElementById('saveAttendanceBtn').addEventListener('click', () => {
-                document.querySelectorAll('.att-present-check').forEach(cb => {
-                    const memberId = cb.dataset.member;
-                    const present = cb.checked;
-                    const timeIn = document.querySelector(`.att-time-in[data-member="${memberId}"]`).value;
-                    const timeOut = document.querySelector(`.att-time-out[data-member="${memberId}"]`).value;
-                    const reason = document.querySelector(`.att-reason[data-member="${memberId}"]`).value;
-                    let idx = attendances.findIndex(a => a.memberId === memberId && a.date === selectedDate && a.meetingType === selectedSessionType);
-                    if (idx >= 0) {
-                        attendances[idx] = { ...attendances[idx], present, timeIn, timeOut, reason, prayerLeaderId: currentPrayerLeader ? currentPrayerLeader.id : attendances[idx].prayerLeaderId };
-                    } else {
-                        attendances.push({ memberId, date: selectedDate, meetingType: selectedSessionType, present, timeIn, timeOut, reason, programName: '', prayerLeaderId: currentPrayerLeader ? currentPrayerLeader.id : null });
-                    }
-                });
-                saveAll();
-                alert('Attendance saved successfully!');
-            });
-
-            // Edit member modal
-            const modal = document.getElementById('editModal');
-            document.getElementById('closeModal').addEventListener('click', () => modal.style.display = 'none');
-            window.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
-            document.getElementById('editMemberForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                const id = document.getElementById('editMemberId').value;
-                const idx = members.findIndex(m => m.id === id);
-                if (idx !== -1) {
-                    members[idx] = {
-                        ...members[idx],
-                        fullName: document.getElementById('editFullName').value, phone: document.getElementById('editPhone').value,
-                        email: document.getElementById('editEmail').value, gender: document.getElementById('editGender').value,
-                        dateJoined: document.getElementById('editDateJoined').value, role: document.getElementById('editRole').value,
-                        status: document.getElementById('editStatus').checked ? 'Active' : 'Inactive'
-                    };
-                    saveAll();
-                    modal.style.display = 'none';
-                }
-            });
-
-            // Settings buttons
-            document.getElementById('exportDataBtn').addEventListener('click', () => {
-                const data = { members, attendances };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = 'cac_prayer_unit_backup.json'; a.click();
-            });
-            document.getElementById('importDataBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
-            document.getElementById('importFileInput').addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const r = new FileReader();
-                    r.onload = function(ev) {
-                        try {
-                            const data = JSON.parse(ev.target.result);
-                            if (data.members && data.attendances) { members = data.members; attendances = data.attendances; saveAll(); alert('Data imported!'); }
-                        } catch (error) { alert('Error importing data'); }
-                    };
-                    r.readAsText(file);
-                }
-            });
-            document.getElementById('resetDataBtn').addEventListener('click', () => {
-                if (confirm('Reset all data?')) { members = []; attendances = []; saveAll(); alert('Data reset.'); }
-            });
-            document.getElementById('generateSampleDataBtn').addEventListener('click', () => {
-                if (confirm('Generate sample data?')) { generateSampleAttendance(); saveAll(); alert('Sample data generated!'); }
-            });
-            document.getElementById('cleanupDataBtn').addEventListener('click', () => {
-                if (confirm('Remove records older than 6 months?')) {
-                    const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                    attendances = attendances.filter(a => a.date >= sixMonthsAgo.toISOString().split('T')[0]);
-                    saveAll(); alert('Old records cleaned!');
-                }
-            });
-
-            // Report generation
-            document.getElementById('generateMonthlyReportBtn').addEventListener('click', updateMonthlyPreview);
-            document.getElementById('reportMonth').addEventListener('change', updateMonthlyPreview);
-            document.getElementById('reportYear').addEventListener('change', updateMonthlyPreview);
-
-            // Excel export
-            document.getElementById('exportExcelBtn').addEventListener('click', () => {
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-                    ['Name', 'Phone', 'Email', 'Role', 'Status'],
-                    ...members.map(m => [m.fullName, m.phone, m.email, m.role, m.status])
-                ]), "Members");
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-                    ['Member', 'Date', 'Session Type', 'Program Name', 'Prayer Leader', 'Status', 'Time In', 'Time Out', 'Reason'],
-                    ...attendances.map(a => [
-                        members.find(m => m.id === a.memberId)?.fullName || 'Unknown',
-                        a.date, a.meetingType, a.programName || '',
-                        a.prayerLeaderId ? members.find(m => m.id === a.prayerLeaderId)?.fullName || '' : '',
-                        a.present ? 'Present' : 'Absent', a.timeIn || '', a.timeOut || '', a.reason || ''
-                    ])
-                ]), "Attendance");
-                XLSX.writeFile(wb, "CAC_Prayer_Unit_Complete.xlsx");
-            });
-
-            // Initialize
-            refreshAllViews();
-            updateMonthlyPreview();
-            updateSessionStats();
+            // REST OF YOUR EXISTING CODE CONTINUES HERE...
+            // Include all your existing functions like addMember, renderMembers, etc.
         })();
     </script>
 </body>
