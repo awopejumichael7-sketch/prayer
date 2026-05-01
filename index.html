@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Libraries -->
-    <script type="module" src="firebase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
@@ -984,62 +983,6 @@
             let selectedSessionType = 'Sunday';
             let currentPrayerLeader = null;
             let currentTab = 'members-tab';
-
-              // Subscribe to Firestore so data syncs across browsers/devices.
-        // Each listener refreshes the local cache and re-renders the active view.
-        function subscribeToRemoteData() {
-            const refreshActive = () => {
-                const activeSection = document.querySelector('.nav-link.active')?.textContent.toLowerCase() || 'dashboard';
-                if (activeSection === 'dashboard') loadDashboard();
-                if (activeSection === 'members') loadMembers();
-                if (activeSection === 'attendance') loadAttendance();
-               
-                if (activeSection === 'sessions') sessions();
-                if (activeSection === 'settings') loadSettings();
-                if (activeSection === 'reports') loadReport();
-            };
-
-            window.onMembersChange((data) => {
-                members = data.map(m => ({ attendance: 0, picture: '', ...m }));
-                refreshActive();
-            });
-
-            // Attendance listener: orderBy("date") drops docs without a `date` field,
-            // so we read the raw collection instead to stay tolerant of older data shapes.
-            window.db.collection('attendance').onSnapshot((snapshot) => {
-                const records = [];
-                snapshot.forEach(doc => records.push({ id: doc.id, ...doc.data() }));
-                attendance = records;
-                refreshActive();
-            });
-
-            window.onSessionsChange((data) => {
-                sessions = data;
-                refreshActive();
-            });
-
-        // Kept as a no-op for any legacy call sites. Firestore is the source of truth.
-        function saveAllData() {}
-              // ==================== NAVIGATION ====================
-        function showSection(section, trigger = null) {
-            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-            document.getElementById(section + 'Section').style.display = 'block';
-            
-            document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
-            const activeLink = trigger || document.querySelector(`.nav-link[onclick="showSection('${section}')"]`);
-            if (activeLink) activeLink.classList.add('active');
-
-            if (section === 'dashboard') loadDashboard();
-            if (section === 'members') loadMembers();
-            if (section === 'attendance') loadAttendance();
-            if (section === 'sessions') loadSessions();
-            if (section === 'reports') loadReport();
-            if (section === 'settings') loadSettings();
-        }
-
-
-
-
 
             // Clean up old isPrayerLeader property if exists
             members = members.map(m => {
