@@ -965,6 +965,8 @@
     <script>
         (function() {
             // ============ FIREBASE INITIALIZATION ============
+    import {initializeApp} from "firebase/app";
+            import {getFirestore} from 'firebase/firestore';
             const firebaseConfig = {
                 apiKey: "AIzaSyAlUpIbQH1k678yqHnhxMiyYJ_NZ3zaeKo",
   authDomain: "prayer-72a4b.firebaseapp.com",
@@ -973,7 +975,8 @@
   messagingSenderId: "629914619936",
   appId: "1:629914619936:web:ebe967ca3da7198982ac45"
             };
-
+export const app = initializeApp(firebaseConfig);
+export const database = getFirestore(app);
             // Initialize Firebase
             firebase.initializeApp(firebaseConfig);
             const db = firebase.firestore();
