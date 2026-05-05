@@ -8,15 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js">
+    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
+    </script>
     <style>
         * {
             margin: 0;
@@ -479,53 +478,27 @@
             margin: 1.5rem 0;
         }
 
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            gap: 1rem;
+        .leader-highlight {
+            position: relative;
+        }
+        .leader-highlight::before {
+            content: '👑';
+            position: absolute;
+            top: -10px;
+            right: -5px;
+            font-size: 1.2rem;
         }
 
-        .loading-overlay.active {
+        .download-options {
             display: flex;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid var(--border-light);
-            border-top: 4px solid var(--accent-emerald);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .sync-status {
-            display: inline-flex;
-            align-items: center;
             gap: 0.5rem;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
+            flex-wrap: wrap;
         }
-        .sync-online { background: #e8f5e9; color: #2e7d32; }
-        .sync-offline { background: #fdecea; color: #c62828; }
-        .sync-syncing { background: #fff3e0; color: #e65100; }
 
         @media (max-width: 768px) {
-            .grid-2col { grid-template-columns: 1fr; }
+            .grid-2col, .grid-3col, .grid-4col {
+                grid-template-columns: 1fr;
+            }
             body { padding: 12px 8px; }
             h1 { font-size: 1.8rem; }
             .card { padding: 1.2rem; }
@@ -535,12 +508,6 @@
     </style>
 </head>
 <body>
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <span style="color: var(--text-secondary);">Syncing with Firebase...</span>
-    </div>
-
     <div class="app">
         <!-- Header -->
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:1rem;">
@@ -549,9 +516,6 @@
                 <h1 style="margin-top: 0.1rem;">Prayer Unit <span style="font-weight: 300; color: var(--text-secondary);">Attendance</span></h1>
             </div>
             <div class="flex-row">
-                <div id="syncStatusIndicator" class="sync-status sync-offline">
-                    <i class="fas fa-cloud"></i> <span>Offline</span>
-                </div>
                 <button class="btn btn-outline" id="exportExcelBtn"><i class="far fa-file-excel"></i> Export Excel</button>
                 <button class="btn btn-gold" id="headerPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF Report</button>
             </div>
@@ -880,7 +844,30 @@
                         <button class="btn btn-gold" id="downloadMonthlyPdfBtn"><i class="fas fa-file-pdf"></i> Download PDF</button>
                     </div>
                     <div id="monthlyStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
-                        <!-- Stats populated dynamically -->
+                        <div class="stat-item" style="background: #f0f7f5;">
+                            <span class="stat-number" style="color: var(--accent-emerald); font-size: 1.6rem;" id="totalSessionsMonth">0</span>
+                            <span>Total Sessions</span>
+                        </div>
+                        <div class="stat-item" style="background: #e8f5e9;">
+                            <span class="stat-number" style="color: #2e7d32; font-size: 1.6rem;" id="sundaySessions">0</span>
+                            <span>Sunday Services</span>
+                        </div>
+                        <div class="stat-item" style="background: #e3f2fd;">
+                            <span class="stat-number" style="color: #1565c0; font-size: 1.6rem;" id="wednesdaySessions">0</span>
+                            <span>Wednesday</span>
+                        </div>
+                        <div class="stat-item" style="background: #fff3e0;">
+                            <span class="stat-number" style="color: #e65100; font-size: 1.6rem;" id="saturdaySessions">0</span>
+                            <span>Saturday</span>
+                        </div>
+                        <div class="stat-item" style="background: #f3e5f5;">
+                            <span class="stat-number" style="color: #6a1b9a; font-size: 1.6rem;" id="vigilSessions">0</span>
+                            <span>Monthly Vigils</span>
+                        </div>
+                        <div class="stat-item" style="background: #fce4ec;">
+                            <span class="stat-number" style="color: #c62828; font-size: 1.6rem;" id="specialSessions">0</span>
+                            <span>Special Programs</span>
+                        </div>
                     </div>
                 </div>
 
@@ -929,13 +916,6 @@
                 <h2 style="margin-bottom: 1.2rem;">⚙️ Settings & Data Management</h2>
                 <div class="grid-2col">
                     <div>
-                        <h3 style="margin-bottom: 0.8rem;">Firebase Connection</h3>
-                        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
-                            <button class="btn btn-secondary" id="syncAllDataBtn"><i class="fas fa-cloud-upload-alt"></i> Sync All Data to Firebase</button>
-                            <button class="btn btn-outline" id="loadFromFirebaseBtn"><i class="fas fa-cloud-download-alt"></i> Load Data from Firebase</button>
-                        </div>
-                    </div>
-                    <div>
                         <h3 style="margin-bottom: 0.8rem;">Data Operations</h3>
                         <div style="display: flex; flex-direction: column; gap: 0.8rem;">
                             <button class="btn btn-outline" id="exportDataBtn"><i class="fas fa-download"></i> Export All Data (JSON)</button>
@@ -959,232 +939,79 @@
 
     <!-- Edit Member Modal -->
     <div id="editModal" class="modal">
-        <!-- Same modal content as original -->
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>✏️ Edit Member</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <form id="editMemberForm">
+                <input type="hidden" id="editMemberId">
+                <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    <input type="text" class="input-field" placeholder="Full Name *" id="editFullName" required>
+                    <input type="tel" class="input-field" placeholder="Phone" id="editPhone">
+                    <input type="email" class="input-field" placeholder="Email" id="editEmail">
+                    <select class="input-field" id="editGender">
+                        <option>Male</option><option>Female</option>
+                    </select>
+                    <input type="date" class="input-field" id="editDateJoined">
+                    <select class="input-field" id="editRole">
+                        <option>Member</option>
+                        <option>Leader</option>
+                        <option>Assistant Leader</option>
+                        <option>Prayer Coordinator</option>
+                        <option>Vigil Coordinator</option>
+                    </select>
+                    <div class="flex-row">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="editStatus" checked style="accent-color: var(--accent-emerald);"> Active
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%; justify-content: center;">
+                        <i class="fas fa-save"></i> Update Member
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script>
         (function() {
-            // ============ FIREBASE INITIALIZATION ============
-    import {initializeApp} from "firebase/app";
-            import {getFirestore} from 'firebase/firestore';
-            const firebaseConfig = {
-                apiKey: "AIzaSyAlUpIbQH1k678yqHnhxMiyYJ_NZ3zaeKo",
-  authDomain: "prayer-72a4b.firebaseapp.com",
-  projectId: "prayer-72a4b",
-  storageBucket: "prayer-72a4b.firebasestorage.app",
-  messagingSenderId: "629914619936",
-  appId: "1:629914619936:web:ebe967ca3da7198982ac45"
-            };
-export const app = initializeApp(firebaseConfig);
-export const database = getFirestore(app);
-            // Initialize Firebase
-            firebase.initializeApp(firebaseConfig);
-            const db = firebase.firestore();
-            const auth = firebase.auth();
-            const storage = firebase.storage();
-
-            // Enable offline persistence
-            db.enablePersistence()
-                .catch((err) => {
-                    if (err.code == 'failed-precondition') {
-                        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-                    } else if (err.code == 'unimplemented') {
-                        console.warn('The current browser does not support persistence.');
-                    }
-                });
-
             // ============ DATA MANAGEMENT ============
-            let members = [];
-            let attendances = [];
+            let members = JSON.parse(localStorage.getItem('cac_members')) || [];
+            let attendances = JSON.parse(localStorage.getItem('cac_attendance')) || [];
             let selectedDate = new Date().toISOString().split('T')[0];
             let selectedSessionType = 'Sunday';
             let currentPrayerLeader = null;
             let currentTab = 'members-tab';
-            let isOnline = navigator.onLine;
-            let isSyncing = false;
 
-            // Update sync status
-            function updateSyncStatus(status) {
-                const indicator = document.getElementById('syncStatusIndicator');
-                const icon = indicator.querySelector('i');
-                const text = indicator.querySelector('span');
-                
-                indicator.className = 'sync-status ' + status;
-                switch(status) {
-                    case 'sync-online':
-                        icon.className = 'fas fa-cloud';
-                        text.textContent = 'Online';
-                        break;
-                    case 'sync-offline':
-                        icon.className = 'fas fa-cloud';
-                        text.textContent = 'Offline';
-                        break;
-                    case 'sync-syncing':
-                        icon.className = 'fas fa-sync fa-spin';
-                        text.textContent = 'Syncing...';
-                        break;
-                }
-            }
-
-            // Load data from Firebase
-            async function loadFromFirebase() {
-                if (isSyncing) return;
-                isSyncing = true;
-                updateSyncStatus('sync-syncing');
-                document.getElementById('loadingOverlay').classList.add('active');
-
-                try {
-                    // Load members
-                    const membersSnapshot = await db.collection('members').get();
-                    members = membersSnapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-
-                    // Load attendances
-                    const attendancesSnapshot = await db.collection('attendances').get();
-                    attendances = attendancesSnapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    }));
-
-                    // Cache locally
-                    localStorage.setItem('cac_members', JSON.stringify(members));
-                    localStorage.setItem('cac_attendance', JSON.stringify(attendances));
-
-                    updateSyncStatus('sync-online');
-                    refreshAllViews();
-                    console.log('Data loaded from Firebase:', members.length, 'members,', attendances.length, 'attendances');
-                } catch (error) {
-                    console.error('Error loading from Firebase:', error);
-                    updateSyncStatus('sync-offline');
-                    // Fall back to local storage
-                    loadFromLocalStorage();
-                } finally {
-                    isSyncing = false;
-                    document.getElementById('loadingOverlay').classList.remove('active');
-                }
-            }
-
-            // Save to Firebase
-            async function saveToFirebase() {
-                if (!isOnline || isSyncing) return;
-                isSyncing = true;
-                updateSyncStatus('sync-syncing');
-
-                try {
-                    const batch = db.batch();
-
-                    // Save all members
-                    const membersCollection = db.collection('members');
-                    const existingMembers = await membersCollection.get();
-                    const existingMemberIds = new Set(existingMembers.docs.map(doc => doc.id));
-
-                    // Delete removed members
-                    existingMembers.docs.forEach(doc => {
-                        if (!members.find(m => m.id === doc.id)) {
-                            batch.delete(doc.ref);
-                        }
-                    });
-
-                    // Add/update members
-                    members.forEach(member => {
-                        const memberRef = membersCollection.doc(member.id);
-                        const { id, ...memberData } = member;
-                        batch.set(memberRef, memberData, { merge: true });
-                    });
-
-                    // Save all attendances
-                    const attendancesCollection = db.collection('attendances');
-                    const existingAttendances = await attendancesCollection.get();
-                    const existingAttendanceIds = new Set(existingAttendances.docs.map(doc => doc.id));
-
-                    // Delete removed attendances
-                    existingAttendances.docs.forEach(doc => {
-                        if (!attendances.find(a => a.id === doc.id)) {
-                            batch.delete(doc.ref);
-                        }
-                    });
-
-                    // Add/update attendances
-                    attendances.forEach(attendance => {
-                        const attendanceRef = attendancesCollection.doc(attendance.id);
-                        const { id, ...attendanceData } = attendance;
-                        batch.set(attendanceRef, attendanceData, { merge: true });
-                    });
-
-                    await batch.commit();
-                    updateSyncStatus('sync-online');
-                    console.log('Data synced to Firebase');
-                } catch (error) {
-                    console.error('Error saving to Firebase:', error);
-                    updateSyncStatus('sync-offline');
-                } finally {
-                    isSyncing = false;
-                }
-            }
-
-            // Load from local storage
-            function loadFromLocalStorage() {
-                const localMembers = localStorage.getItem('cac_members');
-                const localAttendances = localStorage.getItem('cac_attendance');
-                
-                if (localMembers) {
-                    members = JSON.parse(localMembers);
-                }
-                if (localAttendances) {
-                    attendances = JSON.parse(localAttendances);
-                }
-                
-                console.log('Loaded from localStorage:', members.length, 'members,', attendances.length, 'attendances');
-            }
+            // Clean up old isPrayerLeader property if exists
+            members = members.map(m => {
+                const { isPrayerLeader, ...rest } = m;
+                return rest;
+            });
 
             function saveAll() {
-                // Save to localStorage immediately
                 localStorage.setItem('cac_members', JSON.stringify(members));
                 localStorage.setItem('cac_attendance', JSON.stringify(attendances));
-                
-                // Save to Firebase if online
-                if (isOnline) {
-                    saveToFirebase().catch(err => console.error('Background sync failed:', err));
-                }
-                
                 refreshAllViews();
                 updateMonthlyPreview();
             }
 
-            // Generate unique IDs
-            function generateId() {
-                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            // Initialize sample data
+            if (members.length === 0) {
+                members = [
+                    { id: '1', fullName: 'Esther Oyedeji', phone: '0801234567', email: 'esther@ex.com', gender: 'Female', dateJoined: '2024-01-10', role: 'Leader', status: 'Active', photo: '' },
+                    { id: '2', fullName: 'David Akinola', phone: '0902345678', email: 'david@ex.com', gender: 'Male', dateJoined: '2024-02-15', role: 'Assistant Leader', status: 'Active', photo: '' },
+                    { id: '3', fullName: 'Ruth Caleb', phone: '0703344556', email: 'ruth@ex.com', gender: 'Female', dateJoined: '2024-03-01', role: 'Member', status: 'Active', photo: '' },
+                    { id: '4', fullName: 'Samuel Ige', phone: '0819988776', email: 'samuel@ex.com', gender: 'Male', dateJoined: '2024-04-20', role: 'Member', status: 'Active', photo: '' },
+                    { id: '5', fullName: 'Grace Oluwaseun', phone: '0705566778', email: 'grace@ex.com', gender: 'Female', dateJoined: '2024-05-10', role: 'Prayer Coordinator', status: 'Active', photo: '' },
+                    { id: '6', fullName: 'Michael Adebayo', phone: '0812233445', email: 'michael@ex.com', gender: 'Male', dateJoined: '2024-06-15', role: 'Vigil Coordinator', status: 'Active', photo: '' }
+                ];
             }
 
-            // Initialize or load sample data
-            async function initializeData() {
-                // First try Firebase
-                if (isOnline) {
-                    await loadFromFirebase();
-                } else {
-                    loadFromLocalStorage();
-                }
-
-                // If no data exists, generate sample data
-                if (members.length === 0) {
-                    members = [
-                        { id: generateId(), fullName: 'Esther Oyedeji', phone: '0801234567', email: 'esther@ex.com', gender: 'Female', dateJoined: '2024-01-10', role: 'Leader', status: 'Active', photo: '' },
-                        { id: generateId(), fullName: 'David Akinola', phone: '0902345678', email: 'david@ex.com', gender: 'Male', dateJoined: '2024-02-15', role: 'Assistant Leader', status: 'Active', photo: '' },
-                        { id: generateId(), fullName: 'Ruth Caleb', phone: '0703344556', email: 'ruth@ex.com', gender: 'Female', dateJoined: '2024-03-01', role: 'Member', status: 'Active', photo: '' },
-                        { id: generateId(), fullName: 'Samuel Ige', phone: '0819988776', email: 'samuel@ex.com', gender: 'Male', dateJoined: '2024-04-20', role: 'Member', status: 'Active', photo: '' },
-                        { id: generateId(), fullName: 'Grace Oluwaseun', phone: '0705566778', email: 'grace@ex.com', gender: 'Female', dateJoined: '2024-05-10', role: 'Prayer Coordinator', status: 'Active', photo: '' },
-                        { id: generateId(), fullName: 'Michael Adebayo', phone: '0812233445', email: 'michael@ex.com', gender: 'Male', dateJoined: '2024-06-15', role: 'Vigil Coordinator', status: 'Active', photo: '' }
-                    ];
-                }
-
-                if (attendances.length === 0) {
-                    generateSampleAttendance();
-                }
-
+            if (attendances.length === 0) {
+                generateSampleAttendance();
                 saveAll();
-                refreshAllViews();
             }
 
             function generateSampleAttendance() {
@@ -1212,56 +1039,59 @@ export const database = getFirestore(app);
                             const dateStr = date.toISOString().split('T')[0];
                             const selectedLeader = allActiveMembers[Math.floor(Math.random() * allActiveMembers.length)];
                             
-                            allActiveMembers.forEach(member => {
-                                let prob = 0.82;
-                                if (member.role === 'Leader') prob = 0.95;
-                                if (member.role === 'Assistant Leader') prob = 0.72;
-                                const present = Math.random() < prob;
-                                attendances.push({
-                                    id: generateId(),
-                                    memberId: member.id, date: dateStr, meetingType: sessionType,
-                                    present, timeIn: present ? '09:00' : '', timeOut: present ? '11:00' : '',
-                                    reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
-                                    programName: '', prayerLeaderId: selectedLeader ? selectedLeader.id : null
-                                });
+                            members.forEach(member => {
+                                if (member.status === 'Active') {
+                                    let prob = 0.82;
+                                    if (member.id === '1') prob = 0.95;
+                                    if (member.id === '2') prob = 0.72;
+                                    const present = Math.random() < prob;
+                                    attendances.push({
+                                        memberId: member.id, date: dateStr, meetingType: sessionType,
+                                        present, timeIn: present ? '09:00' : '', timeOut: present ? '11:00' : '',
+                                        reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
+                                        programName: '', prayerLeaderId: selectedLeader ? selectedLeader.id : null
+                                    });
+                                }
                             });
                         }
                     }
 
-                    // Monthly Vigil - last Friday
+                    // Monthly Vigil
                     const lastDay = new Date(year, month + 1, 0);
                     let vigilDate = new Date(lastDay);
                     while (vigilDate.getDay() !== 5) { vigilDate.setDate(vigilDate.getDate() - 1); }
                     const vigilDateStr = vigilDate.toISOString().split('T')[0];
                     const vigilLeader = allActiveMembers[Math.floor(Math.random() * allActiveMembers.length)];
                     
-                    allActiveMembers.forEach(member => {
-                        const present = Math.random() < 0.75;
-                        attendances.push({
-                            id: generateId(),
-                            memberId: member.id, date: vigilDateStr, meetingType: 'Monthly Vigil',
-                            present, timeIn: present ? '22:00' : '', timeOut: present ? '04:00' : '',
-                            reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
-                            programName: 'Monthly Vigil', prayerLeaderId: vigilLeader ? vigilLeader.id : null
-                        });
+                    members.forEach(member => {
+                        if (member.status === 'Active') {
+                            const present = Math.random() < 0.75;
+                            attendances.push({
+                                memberId: member.id, date: vigilDateStr, meetingType: 'Monthly Vigil',
+                                present, timeIn: present ? '22:00' : '', timeOut: present ? '04:00' : '',
+                                reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
+                                programName: 'Monthly Vigil', prayerLeaderId: vigilLeader ? vigilLeader.id : null
+                            });
+                        }
                     });
 
-                    // Special Program - random day
+                    // Special Program
                     const specialDay = Math.floor(Math.random() * 20) + 5;
                     const specialDate = new Date(year, month, specialDay);
                     const specialDateStr = specialDate.toISOString().split('T')[0];
                     const specialName = specialNames[Math.floor(Math.random() * specialNames.length)];
                     const specialLeader = allActiveMembers[Math.floor(Math.random() * allActiveMembers.length)];
 
-                    allActiveMembers.forEach(member => {
-                        const present = Math.random() < 0.85;
-                        attendances.push({
-                            id: generateId(),
-                            memberId: member.id, date: specialDateStr, meetingType: 'Special Program',
-                            present, timeIn: present ? '10:00' : '', timeOut: present ? '14:00' : '',
-                            reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
-                            programName: specialName, prayerLeaderId: specialLeader ? specialLeader.id : null
-                        });
+                    members.forEach(member => {
+                        if (member.status === 'Active') {
+                            const present = Math.random() < 0.85;
+                            attendances.push({
+                                memberId: member.id, date: specialDateStr, meetingType: 'Special Program',
+                                present, timeIn: present ? '10:00' : '', timeOut: present ? '14:00' : '',
+                                reason: present ? '' : reasons[Math.floor(Math.random() * reasons.length)],
+                                programName: specialName, prayerLeaderId: specialLeader ? specialLeader.id : null
+                            });
+                        }
                     });
                 }
             }
@@ -1372,7 +1202,6 @@ export const database = getFirestore(app);
             }
 
             function generateMonthlyReportPDF() {
-                // Same as original but adapted for Firebase
                 const month = parseInt(document.getElementById('reportMonth').value);
                 const year = parseInt(document.getElementById('reportYear').value);
                 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -1387,6 +1216,7 @@ export const database = getFirestore(app);
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('landscape');
                 
+                // Title
                 doc.setFontSize(20);
                 doc.setTextColor(30, 47, 74);
                 doc.text('CAC Good Works Prayer Unit', 14, 15);
@@ -1394,9 +1224,11 @@ export const database = getFirestore(app);
                 doc.setTextColor(100, 100, 100);
                 doc.text(`Monthly Attendance Report - ${monthName} ${year}`, 14, 25);
                 
+                // Summary stats
                 doc.setFontSize(10);
                 doc.text(`Total Sessions: ${sessionKeys.length} | Sundays: ${sessionKeys.filter(k => k.includes('Sunday')).length} | Wednesdays: ${sessionKeys.filter(k => k.includes('Wednesday')).length} | Saturdays: ${sessionKeys.filter(k => k.includes('Saturday')).length} | Vigils: ${sessionKeys.filter(k => k.includes('Monthly Vigil')).length} | Special: ${sessionKeys.filter(k => k.includes('Special Program')).length}`, 14, 33);
 
+                // Session details table
                 const sessionRows = sessionKeys.map(sessionKey => {
                     const [date, type] = sessionKey.split('|');
                     const dayAtt = monthAtt.filter(a => a.date === date && a.meetingType === type);
@@ -1422,6 +1254,36 @@ export const database = getFirestore(app);
                     columnStyles: { 6: { cellWidth: 80 } }
                 });
 
+                // Member summary table
+                const finalY = doc.lastAutoTable.finalY + 8;
+                doc.setFontSize(12);
+                doc.text('Member Attendance Summary:', 14, finalY);
+                
+                const memberRows = members.filter(m => m.status === 'Active').map(member => {
+                    const memAtt = monthAtt.filter(a => a.memberId === member.id);
+                    if (memAtt.length === 0) return null;
+                    const present = memAtt.filter(a => a.present).length;
+                    const absent = memAtt.filter(a => !a.present).length;
+                    const pct = ((present / memAtt.length) * 100).toFixed(1);
+                    const timesLed = monthAtt.filter(a => a.prayerLeaderId === member.id).length;
+                    const absenceReasons = memAtt.filter(a => !a.present && a.reason).map(a => 
+                        `${a.date.split('-')[2]}/${a.date.split('-')[1]}: ${a.reason}`
+                    ).join('; ');
+                    
+                    return [member.fullName, member.role, memAtt.length.toString(), present.toString(), 
+                            absent.toString(), pct + '%', timesLed.toString(), absenceReasons || 'None'];
+                }).filter(row => row !== null);
+
+                doc.autoTable({
+                    head: [['Name', 'Role', 'Sessions', 'Present', 'Absent', '%', 'Times Led', 'Absence Reasons']],
+                    body: memberRows,
+                    startY: finalY + 5,
+                    theme: 'striped',
+                    headStyles: { fillColor: [30, 47, 74] },
+                    styles: { fontSize: 7, cellPadding: 2 },
+                    columnStyles: { 7: { cellWidth: 60 } }
+                });
+
                 doc.save(`CAC_Monthly_Report_${monthName}_${year}.pdf`);
             }
 
@@ -1429,6 +1291,7 @@ export const database = getFirestore(app);
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('landscape');
                 
+                // Title page
                 doc.setFontSize(24);
                 doc.setTextColor(30, 47, 74);
                 doc.text('CAC Good Works', 14, 30);
@@ -1438,6 +1301,7 @@ export const database = getFirestore(app);
                 doc.setTextColor(100, 100, 100);
                 doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`, 14, 54);
                 
+                // Overview stats
                 const totalSessions = [...new Set(attendances.map(a => a.date))].length;
                 const activeMembers = members.filter(m => m.status === 'Active');
                 const activeAtt = attendances.filter(a => activeMembers.find(m => m.id === a.memberId));
@@ -1450,6 +1314,9 @@ export const database = getFirestore(app);
                 doc.text(`Overall Attendance Rate: ${avgPct}%`, 14, 79);
                 doc.text(`Total Prayer Leader Assignments: ${leaderAssignments}`, 14, 86);
 
+                // Session type breakdown
+                doc.setFontSize(14);
+                doc.text('Session Type Breakdown', 14, 100);
                 const allDates = [...new Set(attendances.map(a => a.date))];
                 const typeStats = [
                     ['Sunday Services', allDates.filter(d => attendances.some(a => a.date === d && a.meetingType === 'Sunday')).length],
@@ -1462,13 +1329,105 @@ export const database = getFirestore(app);
                 doc.autoTable({
                     head: [['Session Type', 'Count']],
                     body: typeStats,
-                    startY: 92,
+                    startY: 105,
                     theme: 'striped',
                     headStyles: { fillColor: [29, 107, 94] },
                     styles: { fontSize: 10 }
                 });
 
+                // Member summary
+                const memberY = doc.lastAutoTable.finalY + 10;
+                doc.setFontSize(14);
+                doc.text('Member Attendance Summary', 14, memberY);
+                
+                const leaderCounts = {};
+                attendances.forEach(a => {
+                    if (a.prayerLeaderId) leaderCounts[a.prayerLeaderId] = (leaderCounts[a.prayerLeaderId] || 0) + 1;
+                });
+
+                const memberRows = activeMembers.map(m => {
+                    const memAtt = attendances.filter(a => a.memberId === m.id);
+                    const present = memAtt.filter(a => a.present).length;
+                    return [
+                        m.fullName, m.role, memAtt.length.toString(), present.toString(),
+                        (memAtt.length - present).toString(),
+                        memAtt.length ? ((present / memAtt.length) * 100).toFixed(1) + '%' : '0%',
+                        (leaderCounts[m.id] || 0).toString()
+                    ];
+                });
+
+                doc.autoTable({
+                    head: [['Name', 'Role', 'Total Sessions', 'Present', 'Absent', 'Rate', 'Times Led']],
+                    body: memberRows,
+                    startY: memberY + 5,
+                    theme: 'striped',
+                    headStyles: { fillColor: [30, 47, 74] },
+                    styles: { fontSize: 8 }
+                });
+
+                doc.addPage();
+                
+                // Recent sessions
+                doc.setFontSize(14);
+                doc.text('Recent Sessions', 14, 20);
+                const recentSessions = [...new Set(attendances.map(a => `${a.date}|${a.meetingType}`))].sort().reverse().slice(0, 30);
+                const recentRows = recentSessions.map(sk => {
+                    const [date, type] = sk.split('|');
+                    const dayAtt = attendances.filter(a => a.date === date && a.meetingType === type);
+                    const present = dayAtt.filter(a => a.present).length;
+                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
+                    return [date, type, leader ? leader.fullName : '-', present.toString(), 
+                            (dayAtt.length - present).toString(), 
+                            ((present / dayAtt.length) * 100).toFixed(1) + '%'];
+                });
+
+                doc.autoTable({
+                    head: [['Date', 'Type', 'Leader', 'Present', 'Absent', '%']],
+                    body: recentRows,
+                    startY: 25,
+                    theme: 'striped',
+                    headStyles: { fillColor: [44, 110, 99] },
+                    styles: { fontSize: 8 }
+                });
+
                 doc.save(`CAC_Full_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+            }
+
+            function generateSessionsListPDF() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape');
+                
+                doc.setFontSize(18);
+                doc.setTextColor(30, 47, 74);
+                doc.text('CAC Prayer Unit - Sessions List', 14, 20);
+                
+                const filterType = document.getElementById('filterSessionType').value;
+                const sessionKeys = [...new Set(attendances.map(a => `${a.date}|${a.meetingType}`))].sort().reverse();
+                const filteredSessions = filterType === 'all' ? sessionKeys : sessionKeys.filter(k => k.includes(filterType));
+                
+                const rows = filteredSessions.slice(0, 50).map(sessionKey => {
+                    const [date, type] = sessionKey.split('|');
+                    const dayAtt = attendances.filter(a => a.date === date && a.meetingType === type);
+                    const present = dayAtt.filter(a => a.present).length;
+                    const absent = dayAtt.filter(a => !a.present).length;
+                    const pct = dayAtt.length ? ((present / dayAtt.length) * 100).toFixed(1) : 0;
+                    const leader = dayAtt[0]?.prayerLeaderId ? members.find(m => m.id === dayAtt[0].prayerLeaderId) : null;
+                    
+                    return [date, type, leader ? leader.fullName : 'Not assigned', 
+                            present.toString(), absent.toString(), pct + '%',
+                            dayAtt[0]?.programName || '-'];
+                });
+
+                doc.autoTable({
+                    head: [['Date', 'Type', 'Prayer Leader', 'Present', 'Absent', '%', 'Program']],
+                    body: rows,
+                    startY: 28,
+                    theme: 'striped',
+                    headStyles: { fillColor: [44, 110, 99] },
+                    styles: { fontSize: 8 }
+                });
+
+                doc.save(`CAC_Sessions_List_${new Date().toISOString().split('T')[0]}.pdf`);
             }
 
             // ============ HELPER FUNCTIONS ============
@@ -1591,8 +1550,8 @@ export const database = getFirestore(app);
                     });
                 });
                 document.querySelectorAll('.delete-member-btn').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        if (confirm('Delete this member? This action cannot be undone.')) {
+                    btn.addEventListener('click', () => {
+                        if (confirm('Delete this member?')) {
                             members = members.filter(m => m.id !== btn.dataset.memberid);
                             attendances = attendances.filter(a => a.memberId !== btn.dataset.memberid);
                             saveAll();
@@ -1697,7 +1656,7 @@ export const database = getFirestore(app);
                 });
                 document.querySelectorAll('.delete-session-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
-                        if (confirm(`Delete this session? This will remove all attendance records for this date and type.`)) {
+                        if (confirm(`Delete session?`)) {
                             attendances = attendances.filter(a => !(a.date === btn.dataset.date && a.meetingType === btn.dataset.type));
                             saveAll();
                         }
@@ -1756,32 +1715,12 @@ export const database = getFirestore(app);
                 const monthAtt = attendances.filter(a => a.date >= first && a.date <= last);
                 const sessionKeys = [...new Set(monthAtt.map(a => `${a.date}|${a.meetingType}`))].sort();
 
-                document.getElementById('monthlyStats').innerHTML = `
-                    <div class="stat-item" style="background: #f0f7f5;">
-                        <span class="stat-number" style="color: var(--accent-emerald); font-size: 1.6rem;">${sessionKeys.length}</span>
-                        <span>Total Sessions</span>
-                    </div>
-                    <div class="stat-item" style="background: #e8f5e9;">
-                        <span class="stat-number" style="color: #2e7d32; font-size: 1.6rem;">${sessionKeys.filter(k => k.includes('Sunday')).length}</span>
-                        <span>Sunday Services</span>
-                    </div>
-                    <div class="stat-item" style="background: #e3f2fd;">
-                        <span class="stat-number" style="color: #1565c0; font-size: 1.6rem;">${sessionKeys.filter(k => k.includes('Wednesday')).length}</span>
-                        <span>Wednesday</span>
-                    </div>
-                    <div class="stat-item" style="background: #fff3e0;">
-                        <span class="stat-number" style="color: #e65100; font-size: 1.6rem;">${sessionKeys.filter(k => k.includes('Saturday')).length}</span>
-                        <span>Saturday</span>
-                    </div>
-                    <div class="stat-item" style="background: #f3e5f5;">
-                        <span class="stat-number" style="color: #6a1b9a; font-size: 1.6rem;">${sessionKeys.filter(k => k.includes('Monthly Vigil')).length}</span>
-                        <span>Monthly Vigils</span>
-                    </div>
-                    <div class="stat-item" style="background: #fce4ec;">
-                        <span class="stat-number" style="color: #c62828; font-size: 1.6rem;">${sessionKeys.filter(k => k.includes('Special Program')).length}</span>
-                        <span>Special Programs</span>
-                    </div>
-                `;
+                document.getElementById('totalSessionsMonth').innerText = sessionKeys.length;
+                document.getElementById('sundaySessions').innerText = sessionKeys.filter(k => k.includes('Sunday')).length;
+                document.getElementById('wednesdaySessions').innerText = sessionKeys.filter(k => k.includes('Wednesday')).length;
+                document.getElementById('saturdaySessions').innerText = sessionKeys.filter(k => k.includes('Saturday')).length;
+                document.getElementById('vigilSessions').innerText = sessionKeys.filter(k => k.includes('Monthly Vigil')).length;
+                document.getElementById('specialSessions').innerText = sessionKeys.filter(k => k.includes('Special Program')).length;
 
                 document.getElementById('sessionDetailBody').innerHTML = sessionKeys.map(sk => {
                     const [date, type] = sk.split('|');
@@ -1806,10 +1745,8 @@ export const database = getFirestore(app);
             function switchTab(tabId) {
                 document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-                const targetBtn = document.querySelector(`[data-tab="${tabId}"]`);
-                const targetContent = document.getElementById(tabId);
-                if (targetBtn) targetBtn.classList.add('active');
-                if (targetContent) targetContent.classList.add('active');
+                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+                document.getElementById(tabId).classList.add('active');
                 currentTab = tabId;
                 switch (tabId) {
                     case 'members-tab': renderMemberList(); break;
@@ -1834,23 +1771,12 @@ export const database = getFirestore(app);
             // ============ EVENT LISTENERS ============
             document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 
-            // Network status monitoring
-            window.addEventListener('online', () => {
-                isOnline = true;
-                updateSyncStatus('sync-online');
-                saveToFirebase(); // Sync any pending changes
-            });
-
-            window.addEventListener('offline', () => {
-                isOnline = false;
-                updateSyncStatus('sync-offline');
-            });
-
             // PDF Download Buttons
             document.getElementById('headerPdfBtn').addEventListener('click', generateFullReportPDF);
             document.getElementById('downloadMembersPdfBtn').addEventListener('click', generateMembersPDF);
             document.getElementById('downloadAttendancePdfBtn').addEventListener('click', generateAttendancePDF);
             document.getElementById('downloadSessionsPdfBtn').addEventListener('click', generateSessionsPDF);
+            document.getElementById('downloadSessionsListPdfBtn').addEventListener('click', generateSessionsListPDF);
             document.getElementById('downloadMonthlyPdfBtn').addEventListener('click', generateMonthlyReportPDF);
             document.getElementById('downloadFullReportPdfBtn').addEventListener('click', generateFullReportPDF);
 
@@ -1887,7 +1813,6 @@ export const database = getFirestore(app);
                     const exists = attendances.some(a => a.memberId === member.id && a.date === sessionDate && a.meetingType === sessionType);
                     if (!exists) {
                         attendances.push({
-                            id: generateId(),
                             memberId: member.id, date: sessionDate, meetingType: sessionType,
                             present: false, timeIn: document.getElementById('sessionStartTime').value,
                             timeOut: document.getElementById('sessionEndTime').value, reason: '',
@@ -1918,8 +1843,7 @@ export const database = getFirestore(app);
                 const photoFile = document.getElementById('profilePhoto').files[0];
                 const addMember = (photo) => {
                     members.push({
-                        id: generateId(),
-                        fullName, phone: document.getElementById('phone').value,
+                        id: Date.now() + '', fullName, phone: document.getElementById('phone').value,
                         email: document.getElementById('email').value, gender: document.getElementById('gender').value || 'Male',
                         dateJoined: document.getElementById('dateJoined').value, role: document.getElementById('role').value,
                         status: document.getElementById('status').checked ? 'Active' : 'Inactive', photo
@@ -2017,18 +1941,9 @@ export const database = getFirestore(app);
                     const reason = document.querySelector(`.att-reason[data-member="${memberId}"]`).value;
                     let idx = attendances.findIndex(a => a.memberId === memberId && a.date === selectedDate && a.meetingType === selectedSessionType);
                     if (idx >= 0) {
-                        attendances[idx] = { 
-                            ...attendances[idx], 
-                            present, timeIn, timeOut, reason, 
-                            prayerLeaderId: currentPrayerLeader ? currentPrayerLeader.id : attendances[idx].prayerLeaderId 
-                        };
+                        attendances[idx] = { ...attendances[idx], present, timeIn, timeOut, reason, prayerLeaderId: currentPrayerLeader ? currentPrayerLeader.id : attendances[idx].prayerLeaderId };
                     } else {
-                        attendances.push({ 
-                            id: generateId(),
-                            memberId, date: selectedDate, meetingType: selectedSessionType, 
-                            present, timeIn, timeOut, reason, programName: '', 
-                            prayerLeaderId: currentPrayerLeader ? currentPrayerLeader.id : null 
-                        });
+                        attendances.push({ memberId, date: selectedDate, meetingType: selectedSessionType, present, timeIn, timeOut, reason, programName: '', prayerLeaderId: currentPrayerLeader ? currentPrayerLeader.id : null });
                     }
                 });
                 saveAll();
@@ -2046,12 +1961,9 @@ export const database = getFirestore(app);
                 if (idx !== -1) {
                     members[idx] = {
                         ...members[idx],
-                        fullName: document.getElementById('editFullName').value, 
-                        phone: document.getElementById('editPhone').value,
-                        email: document.getElementById('editEmail').value, 
-                        gender: document.getElementById('editGender').value,
-                        dateJoined: document.getElementById('editDateJoined').value, 
-                        role: document.getElementById('editRole').value,
+                        fullName: document.getElementById('editFullName').value, phone: document.getElementById('editPhone').value,
+                        email: document.getElementById('editEmail').value, gender: document.getElementById('editGender').value,
+                        dateJoined: document.getElementById('editDateJoined').value, role: document.getElementById('editRole').value,
                         status: document.getElementById('editStatus').checked ? 'Active' : 'Inactive'
                     };
                     saveAll();
@@ -2060,31 +1972,6 @@ export const database = getFirestore(app);
             });
 
             // Settings buttons
-            document.getElementById('syncAllDataBtn').addEventListener('click', async () => {
-                if (confirm('Sync all local data to Firebase?')) {
-                    isSyncing = true;
-                    updateSyncStatus('sync-syncing');
-                    document.getElementById('loadingOverlay').classList.add('active');
-                    
-                    try {
-                        await saveToFirebase();
-                        alert('Data synced successfully!');
-                    } catch (error) {
-                        alert('Error syncing data: ' + error.message);
-                    } finally {
-                        isSyncing = false;
-                        document.getElementById('loadingOverlay').classList.remove('active');
-                    }
-                }
-            });
-
-            document.getElementById('loadFromFirebaseBtn').addEventListener('click', async () => {
-                if (confirm('Load data from Firebase? This will replace all local data.')) {
-                    await loadFromFirebase();
-                    alert('Data loaded from Firebase!');
-                }
-            });
-
             document.getElementById('exportDataBtn').addEventListener('click', () => {
                 const data = { members, attendances };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -2099,39 +1986,23 @@ export const database = getFirestore(app);
                     r.onload = function(ev) {
                         try {
                             const data = JSON.parse(ev.target.result);
-                            if (data.members && data.attendances) { 
-                                members = data.members; 
-                                attendances = data.attendances; 
-                                saveAll(); 
-                                alert('Data imported!'); 
-                            }
+                            if (data.members && data.attendances) { members = data.members; attendances = data.attendances; saveAll(); alert('Data imported!'); }
                         } catch (error) { alert('Error importing data'); }
                     };
                     r.readAsText(file);
                 }
             });
             document.getElementById('resetDataBtn').addEventListener('click', () => {
-                if (confirm('Reset all data? This cannot be undone.')) { 
-                    members = []; 
-                    attendances = []; 
-                    saveAll(); 
-                    alert('Data reset.'); 
-                }
+                if (confirm('Reset all data?')) { members = []; attendances = []; saveAll(); alert('Data reset.'); }
             });
             document.getElementById('generateSampleDataBtn').addEventListener('click', () => {
-                if (confirm('Generate sample data? This will add to existing data.')) { 
-                    generateSampleAttendance(); 
-                    saveAll(); 
-                    alert('Sample data generated!'); 
-                }
+                if (confirm('Generate sample data?')) { generateSampleAttendance(); saveAll(); alert('Sample data generated!'); }
             });
             document.getElementById('cleanupDataBtn').addEventListener('click', () => {
                 if (confirm('Remove records older than 6 months?')) {
-                    const sixMonthsAgo = new Date(); 
-                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                    const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
                     attendances = attendances.filter(a => a.date >= sixMonthsAgo.toISOString().split('T')[0]);
-                    saveAll(); 
-                    alert('Old records cleaned!'); 
+                    saveAll(); alert('Old records cleaned!');
                 }
             });
 
@@ -2159,17 +2030,10 @@ export const database = getFirestore(app);
                 XLSX.writeFile(wb, "CAC_Prayer_Unit_Complete.xlsx");
             });
 
-            // Initialize app
-            async function initApp() {
-                updateSyncStatus(isOnline ? 'sync-online' : 'sync-offline');
-                await initializeData();
-            }
-
-            initApp().catch(error => {
-                console.error('App initialization error:', error);
-                loadFromLocalStorage();
-                refreshAllViews();
-            });
+            // Initialize
+            refreshAllViews();
+            updateMonthlyPreview();
+            updateSessionStats();
         })();
     </script>
 </body>
