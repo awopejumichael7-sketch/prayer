@@ -17,7 +17,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
     </script>
     <!-- Firebase -->
-
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <style>
@@ -940,7 +940,6 @@
                 </div>
                 <p style="font-size:0.78rem; color:#aaa; margin-top:0.6rem;">Config is saved to localStorage. Enable Firestore in your Firebase console and set rules to allow read/write.</p>
             </div>
-            <div class="card">
                 <h2 style="margin-bottom: 1.2rem;">⚙️ Settings & Data Management</h2>
                 <div class="grid-2col">
                     <div>
@@ -1012,7 +1011,7 @@
                 apiKey: "AIzaSyAlUpIbQH1k678yqHnhxMiyYJ_NZ3zaeKo",
                 authDomain: "prayer-72a4b.firebaseapp.com",
                 projectId: "prayer-72a4b",
-                storageBucket: "prayer-72a4b.appspot.com",
+                storageBucket: "prayer-72a4b.firebasestorage.app",
                 messagingSenderId: "629914619936",
                 appId: "1:629914619936:web:ebe967ca3da7198982ac45"
             };
@@ -1043,31 +1042,32 @@
             // ── Initialize Firebase and start real-time listeners ──
             function initFirebase(config) {
                 try {
-                    let app;
-                    // Reuse existing app if already initialized with same project
+                    // Clean up any previous app instances
                     if (firebase.apps && firebase.apps.length > 0) {
-                        const existing = firebase.apps.find(a => a.options.projectId === config.projectId);
-                        app = existing || firebase.initializeApp(config, 'cac-' + Date.now());
-                    } else {
-                        app = firebase.initializeApp(config);
+                        firebase.apps.forEach(a => { try { a.delete(); } catch(e) {} });
                     }
-                    // Use app.firestore() — firebase.firestore(app) is unreliable with named apps
-                    db = app.firestore();
-                    // Enable offline persistence before any other Firestore operations
-                    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
-                        // failed-precondition: multiple tabs open; unimplemented: browser limitation
-                        if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-                            console.warn('Persistence warning:', err);
-                        }
-                    });
+                } catch (e) {}
+
+                try {
+                    const app = firebase.initializeApp(config);
+                    db = firebase.firestore(app);
+                    // Enable offline persistence so the app works without internet
+                    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
                     setFbStatus('syncing');
                     document.getElementById('fbConfigStatus').textContent = 'Connecting to Firestore…';
 
-                    // Subscribe directly — onSnapshot confirms connectivity.
-                    // Avoid pinging _ping collection which is often blocked by Firestore security rules.
-                    subscribeToFirestore();
-                    document.getElementById('fbConfigStatus').textContent = '✅ Connected — ' + new Date().toLocaleTimeString();
+                    // Verify connection then subscribe
+                    db.collection('_ping').limit(1).get()
+                        .then(() => {
+                            document.getElementById('fbConfigStatus').textContent = '✅ Connected — ' + new Date().toLocaleTimeString();
+                            subscribeToFirestore();
+                        })
+                        .catch(err => {
+                            setFbStatus('error');
+                            document.getElementById('fbConfigStatus').textContent = '❌ ' + (err.message || 'Connection failed');
+                            db = null;
+                        });
                 } catch (err) {
                     setFbStatus('error');
                     document.getElementById('fbConfigStatus').textContent = '❌ ' + (err.message || 'Init failed');
@@ -1086,14 +1086,10 @@
                 fbUnsubscribeMembers = db.collection('members')
                     .orderBy('fullName')
                     .onSnapshot(snap => {
-                        // Always trust Firestore as source of truth once connected
-                        const cloudMembers = snap.docs.map(d => {
-                            const { isPrayerLeader, ...rest } = d.data();
-                            return { id: d.id, ...rest };
-                        });
-                        // Only override local if Firestore has data, or if this is a fresh device
-                        if (cloudMembers.length > 0 || fbReady) {
-                            members = cloudMembers;
+                        if (!snap.empty) {
+                            members = snap.docs
+                                .map(d => { const { isPrayerLeader, ...rest } = d.data(); return { id: d.id, ...rest }; })
+                                .filter(m => !deletedMemberIds.has(m.id));
                             localStorage.setItem('cac_members', JSON.stringify(members));
                         }
                         fbReady = true;
@@ -1105,9 +1101,10 @@
                 // Attendances listener
                 fbUnsubscribeAttendances = db.collection('attendances')
                     .onSnapshot(snap => {
-                        const cloudAttendances = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
-                        if (cloudAttendances.length > 0 || fbReady) {
-                            attendances = cloudAttendances;
+                        if (!snap.empty) {
+                            attendances = snap.docs
+                                .map(d => ({ _docId: d.id, ...d.data() }))
+                                .filter(a => !deletedMemberIds.has(a.memberId));
                             localStorage.setItem('cac_attendance', JSON.stringify(attendances));
                         }
                         setFbStatus('connected');
@@ -1245,6 +1242,8 @@
             // ════════════════════════════════════════════════════════
             let members     = JSON.parse(localStorage.getItem('cac_members'))    || [];
             let attendances = JSON.parse(localStorage.getItem('cac_attendance')) || [];
+            // Track permanently deleted member IDs so they never come back (from Firebase or sample data)
+            let deletedMemberIds = new Set(JSON.parse(localStorage.getItem('cac_deleted_members') || '[]'));
             let selectedDate        = new Date().toISOString().split('T')[0];
             let selectedSessionType = 'Sunday';
             let currentPrayerLeader = null;
@@ -1255,16 +1254,18 @@
 
             // ── saveAll: persist locally and re-render ──
             function saveAll() {
-                localStorage.setItem('cac_members',    JSON.stringify(members));
-                localStorage.setItem('cac_attendance', JSON.stringify(attendances));
+                localStorage.setItem('cac_members',         JSON.stringify(members));
+                localStorage.setItem('cac_attendance',      JSON.stringify(attendances));
+                localStorage.setItem('cac_deleted_members', JSON.stringify([...deletedMemberIds]));
                 refreshAllViews();
                 updateMonthlyPreview();
             }
 
             // ════════════════════════════════════════════════════════
-            //  SAMPLE DATA (only runs when DB is empty)
+            //  SAMPLE DATA (only runs when DB has never had members)
             // ════════════════════════════════════════════════════════
-            if (members.length === 0) {
+            const hasEverHadMembers = localStorage.getItem('cac_has_had_members') === 'true';
+            if (members.length === 0 && !hasEverHadMembers && deletedMemberIds.size === 0) {
                 members = [
                     { id:'1', fullName:'Esther Oyedeji',   phone:'0801234567', email:'esther@ex.com',  gender:'Female', dateJoined:'2024-01-10', role:'Leader',             status:'Active', photo:'' },
                     { id:'2', fullName:'David Akinola',    phone:'0902345678', email:'david@ex.com',   gender:'Male',   dateJoined:'2024-02-15', role:'Assistant Leader',   status:'Active', photo:'' },
@@ -1273,9 +1274,12 @@
                     { id:'5', fullName:'Grace Oluwaseun',  phone:'0705566778', email:'grace@ex.com',   gender:'Female', dateJoined:'2024-05-10', role:'Prayer Coordinator', status:'Active', photo:'' },
                     { id:'6', fullName:'Michael Adebayo', phone:'0812233445', email:'michael@ex.com', gender:'Male',   dateJoined:'2024-06-15', role:'Vigil Coordinator',  status:'Active', photo:'' }
                 ];
+                localStorage.setItem('cac_has_had_members', 'true');
+            } else if (members.length > 0) {
+                localStorage.setItem('cac_has_had_members', 'true');
             }
 
-            if (attendances.length === 0) {
+            if (attendances.length === 0 && !hasEverHadMembers && deletedMemberIds.size === 0) {
                 generateSampleAttendance();
                 saveAll();
             }
@@ -1616,6 +1620,7 @@
                     btn.addEventListener('click', () => {
                         if (!confirm('Delete this member and all their attendance records?')) return;
                         const mid = btn.dataset.memberid;
+                        deletedMemberIds.add(mid);
                         members = members.filter(m=>m.id!==mid);
                         attendances = attendances.filter(a=>a.memberId!==mid);
                         fbDeleteMember(mid).catch(console.error);
@@ -1981,6 +1986,7 @@
                         photo
                     };
                     members.push(newMember);
+                    localStorage.setItem('cac_has_had_members', 'true');
                     fbCreateMember(newMember).catch(console.error);
                     saveAll();
                     switchTab('members-tab');
@@ -2095,6 +2101,9 @@
             document.getElementById('resetDataBtn').addEventListener('click', () => {
                 if (!confirm('Reset ALL data? This cannot be undone.')) return;
                 members = []; attendances = [];
+                deletedMemberIds = new Set();
+                localStorage.removeItem('cac_deleted_members');
+                localStorage.removeItem('cac_has_had_members');
                 saveAll();
                 fbResetAll().then(()=>alert('All data reset (local + Firebase).')).catch(()=>alert('Local data reset. Firebase reset failed — please check permissions.'));
             });
