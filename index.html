@@ -17,7 +17,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
     </script>
     <!-- Firebase -->
-    <script type="module" src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <style>
@@ -940,6 +940,7 @@
                 </div>
                 <p style="font-size:0.78rem; color:#aaa; margin-top:0.6rem;">Config is saved to localStorage. Enable Firestore in your Firebase console and set rules to allow read/write.</p>
             </div>
+            <div class="card">
                 <h2 style="margin-bottom: 1.2rem;">⚙️ Settings & Data Management</h2>
                 <div class="grid-2col">
                     <div>
@@ -1042,14 +1043,14 @@
             // ── Initialize Firebase and start real-time listeners ──
             function initFirebase(config) {
                 try {
-                    // Clean up any previous app instances
+                    let app;
+                    // Reuse existing app if already initialized with same project
                     if (firebase.apps && firebase.apps.length > 0) {
-                        firebase.apps.forEach(a => { try { a.delete(); } catch(e) {} });
+                        const existing = firebase.apps.find(a => a.options.projectId === config.projectId);
+                        app = existing || firebase.initializeApp(config, 'cac-' + Date.now());
+                    } else {
+                        app = firebase.initializeApp(config);
                     }
-                } catch (e) {}
-
-                try {
-                    const app = firebase.initializeApp(config);
                     db = firebase.firestore(app);
                     // Enable offline persistence so the app works without internet
                     db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
@@ -1086,11 +1087,14 @@
                 fbUnsubscribeMembers = db.collection('members')
                     .orderBy('fullName')
                     .onSnapshot(snap => {
-                        if (!snap.empty) {
-                            members = snap.docs.map(d => {
-                                const { isPrayerLeader, ...rest } = d.data();
-                                return { id: d.id, ...rest };
-                            });
+                        // Always trust Firestore as source of truth once connected
+                        const cloudMembers = snap.docs.map(d => {
+                            const { isPrayerLeader, ...rest } = d.data();
+                            return { id: d.id, ...rest };
+                        });
+                        // Only override local if Firestore has data, or if this is a fresh device
+                        if (cloudMembers.length > 0 || fbReady) {
+                            members = cloudMembers;
                             localStorage.setItem('cac_members', JSON.stringify(members));
                         }
                         fbReady = true;
@@ -1102,8 +1106,9 @@
                 // Attendances listener
                 fbUnsubscribeAttendances = db.collection('attendances')
                     .onSnapshot(snap => {
-                        if (!snap.empty) {
-                            attendances = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+                        const cloudAttendances = snap.docs.map(d => ({ _docId: d.id, ...d.data() }));
+                        if (cloudAttendances.length > 0 || fbReady) {
+                            attendances = cloudAttendances;
                             localStorage.setItem('cac_attendance', JSON.stringify(attendances));
                         }
                         setFbStatus('connected');
