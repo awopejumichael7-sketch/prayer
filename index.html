@@ -1012,7 +1012,7 @@
                 apiKey: "AIzaSyAlUpIbQH1k678yqHnhxMiyYJ_NZ3zaeKo",
                 authDomain: "prayer-72a4b.firebaseapp.com",
                 projectId: "prayer-72a4b",
-                storageBucket: "prayer-72a4b.firebasestorage.app",
+                storageBucket: "prayer-72a4b.appspot.com",
                 messagingSenderId: "629914619936",
                 appId: "1:629914619936:web:ebe967ca3da7198982ac45"
             };
@@ -1051,24 +1051,23 @@
                     } else {
                         app = firebase.initializeApp(config);
                     }
-                    db = firebase.firestore(app);
-                    // Enable offline persistence so the app works without internet
-                    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+                    // Use app.firestore() — firebase.firestore(app) is unreliable with named apps
+                    db = app.firestore();
+                    // Enable offline persistence before any other Firestore operations
+                    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+                        // failed-precondition: multiple tabs open; unimplemented: browser limitation
+                        if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+                            console.warn('Persistence warning:', err);
+                        }
+                    });
 
                     setFbStatus('syncing');
                     document.getElementById('fbConfigStatus').textContent = 'Connecting to Firestore…';
 
-                    // Verify connection then subscribe
-                    db.collection('_ping').limit(1).get()
-                        .then(() => {
-                            document.getElementById('fbConfigStatus').textContent = '✅ Connected — ' + new Date().toLocaleTimeString();
-                            subscribeToFirestore();
-                        })
-                        .catch(err => {
-                            setFbStatus('error');
-                            document.getElementById('fbConfigStatus').textContent = '❌ ' + (err.message || 'Connection failed');
-                            db = null;
-                        });
+                    // Subscribe directly — onSnapshot confirms connectivity.
+                    // Avoid pinging _ping collection which is often blocked by Firestore security rules.
+                    subscribeToFirestore();
+                    document.getElementById('fbConfigStatus').textContent = '✅ Connected — ' + new Date().toLocaleTimeString();
                 } catch (err) {
                     setFbStatus('error');
                     document.getElementById('fbConfigStatus').textContent = '❌ ' + (err.message || 'Init failed');
